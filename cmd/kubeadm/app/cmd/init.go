@@ -38,7 +38,6 @@ import (
 	netutil "k8s.io/kubernetes/pkg/util/net"
 	"os"
 	"github.com/ghodss/yaml"
-	"k8s.io/kubernetes/pkg/master"
 )
 
 const (
