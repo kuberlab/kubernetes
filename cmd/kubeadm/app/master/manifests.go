@@ -31,7 +31,6 @@ import (
 	api "k8s.io/kubernetes/pkg/api/v1"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/util/intstr"
-	"github.com/google/cadvisor/manager"
 )
 
 // Static pod definitions in golang form are included below so that `kubeadm init` can get going.
