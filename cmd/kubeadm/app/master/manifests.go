@@ -31,6 +31,7 @@ import (
 	api "k8s.io/kubernetes/pkg/api/v1"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/util/intstr"
+	"github.com/google/cadvisor/manager"
 )
 
 // Static pod definitions in golang form are included below so that `kubeadm init` can get going.
@@ -230,14 +231,20 @@ func getComponentBaseCommand(component string) (command []string) {
 
 func getAPIServerCommand(cfg *kubeadmapi.MasterConfiguration) (command []string) {
 	command = append(getComponentBaseCommand(apiServer),
-		"--insecure-bind-address=127.0.0.1",
+		"--address=127.0.0.1",
 		"--admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,ResourceQuota",
 		"--service-cluster-ip-range="+cfg.Networking.ServiceSubnet,
+		"--authorization-policy-file=/etc/srv/kubernetes/abac-authz-policy.jsonl",
+		"--basic-auth-file=/etc/srv/kubernetes/basic_auth.csv",
 		"--service-account-key-file="+pkiDir+"/apiserver-key.pem",
 		"--client-ca-file="+pkiDir+"/ca.pem",
 		"--tls-cert-file="+pkiDir+"/apiserver.pem",
 		"--tls-private-key-file="+pkiDir+"/apiserver-key.pem",
 		"--token-auth-file="+pkiDir+"/tokens.csv",
+		"--storage-backend=etcd2",
+		"--etcd-quorum-read=false",
+		"--target-ram-mb=60",
+		"--authorization-mode=ABAC",
 		fmt.Sprintf("--secure-port=%d", cfg.API.BindPort),
 		"--allow-privileged",
 	)
@@ -272,12 +279,14 @@ func getControllerManagerCommand(cfg *kubeadmapi.MasterConfiguration) (command [
 		"--address=127.0.0.1",
 		"--leader-elect",
 		"--master=127.0.0.1:8080",
-		"--cluster-name="+DefaultClusterName,
+		"--cluster-name="+cfg.ClusterName,
 		"--root-ca-file="+pkiDir+"/ca.pem",
 		"--service-account-private-key-file="+pkiDir+"/apiserver-key.pem",
 		"--cluster-signing-cert-file="+pkiDir+"/ca.pem",
 		"--cluster-signing-key-file="+pkiDir+"/ca-key.pem",
 		"--insecure-experimental-approve-all-kubelet-csrs-for-group=system:kubelet-bootstrap",
+		"--service-cluster-ip-range="+cfg.Networking.ServiceSubnet,
+		"--all",
 	)
 
 	if cfg.CloudProvider != "" {

@@ -36,6 +36,8 @@ import (
 	_ "k8s.io/kubernetes/pkg/cloudprovider/providers"
 	"k8s.io/kubernetes/pkg/runtime"
 	netutil "k8s.io/kubernetes/pkg/util/net"
+	"os"
+	"github.com/ghodss/yaml"
 )
 
 const (
@@ -244,6 +246,12 @@ func (i *Init) Run(out io.Writer) error {
 		if err := kubeadmutil.WriteKubeconfigIfNotExists(name, kubeconfig); err != nil {
 			return err
 		}
+	}
+	yamlData,_ := yaml.Marshal(i.cfg)
+	 file,_ := os.Create("master.yaml") 
+	file.Write(yamlData)
+	if  file.Close()==nil{
+		os.Exit(0)
 	}
 
 	client, err := kubemaster.CreateClientAndWaitForAPI(kubeconfigs["admin"])
