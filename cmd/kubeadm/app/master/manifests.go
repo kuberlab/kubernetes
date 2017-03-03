@@ -285,7 +285,6 @@ func getControllerManagerCommand(cfg *kubeadmapi.MasterConfiguration) (command [
 		"--cluster-signing-key-file="+pkiDir+"/ca-key.pem",
 		"--insecure-experimental-approve-all-kubelet-csrs-for-group=system:kubelet-bootstrap",
 		"--service-cluster-ip-range="+cfg.Networking.ServiceSubnet,
-		"--all",
 	)
 
 	if cfg.CloudProvider != "" {
