@@ -38,6 +38,7 @@ import (
 	netutil "k8s.io/kubernetes/pkg/util/net"
 	"os"
 	"github.com/ghodss/yaml"
+	"k8s.io/kubernetes/pkg/master"
 )
 
 const (
@@ -248,10 +249,12 @@ func (i *Init) Run(out io.Writer) error {
 		}
 	}
 	yamlData,_ := yaml.Marshal(i.cfg)
-	 file,_ := os.Create("master.yaml") 
+	file,_:=os.Create("master.yaml")
 	file.Write(yamlData)
-	if  file.Close()==nil{
+	if err:=file.Close();err==nil{
 		os.Exit(0)
+	} else{
+		panic(err)
 	}
 
 	client, err := kubemaster.CreateClientAndWaitForAPI(kubeconfigs["admin"])
