@@ -28,10 +28,10 @@ import (
 	certutil "k8s.io/kubernetes/pkg/util/cert"
 )
 
-func CreateCertsAndConfigForClients(cfg kubeadmapi.API, clientNames []string, caKey *rsa.PrivateKey, caCert *x509.Certificate) (map[string]*clientcmdapi.Config, error) {
+func CreateCertsAndConfigForClients(clusterName string,cfg kubeadmapi.API, clientNames []string, caKey *rsa.PrivateKey, caCert *x509.Certificate) (map[string]*clientcmdapi.Config, error) {
 
 	basicClientConfig := kubeadmutil.CreateBasicClientConfig(
-		"kubernetes",
+		clusterName,
 		// TODO this is not great, but there is only one address we can use here
 		// so we'll pick the first one, there is much of chance to have an empty
 		// slice by the time this gets called
@@ -48,7 +48,7 @@ func CreateCertsAndConfigForClients(cfg kubeadmapi.API, clientNames []string, ca
 		}
 		config := kubeadmutil.MakeClientConfigWithCerts(
 			basicClientConfig,
-			"kubernetes",
+			clusterName,
 			client,
 			certutil.EncodePrivateKeyPEM(key),
 			certutil.EncodeCertPEM(cert),

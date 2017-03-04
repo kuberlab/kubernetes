@@ -201,6 +201,7 @@ func NewInit(cfgPath string, cfg *kubeadmapi.MasterConfiguration, skipPreFlight 
 			return nil, fmt.Errorf("cloud provider %q is not supported, you can use any of %v, or leave it unset.\n", cfg.CloudProvider, cloudprovider.CloudProviders())
 		}
 	}
+	preflight.TryStartKubelet()
 	return &Init{cfg: cfg}, nil
 }
 
@@ -226,7 +227,7 @@ func (i *Init) Run(out io.Writer) error {
 		return err
 	}
 
-	kubeconfigs, err := kubemaster.CreateCertsAndConfigForClients(i.cfg.API, []string{"kubelet", "admin"}, caKey, caCert)
+	kubeconfigs, err := kubemaster.CreateCertsAndConfigForClients(i.cfg.API,i.cfg.ClusterName,[]string{"kubelet", "admin"}, caKey, caCert)
 	if err != nil {
 		return err
 	}
