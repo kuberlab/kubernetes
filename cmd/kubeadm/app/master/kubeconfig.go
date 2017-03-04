@@ -28,33 +28,25 @@ import (
 	certutil "k8s.io/kubernetes/pkg/util/cert"
 )
 
-func CreateCertsAndConfigForClients(clusterName string,cfg kubeadmapi.API, clientNames []string, caKey *rsa.PrivateKey, caCert *x509.Certificate) (map[string]*clientcmdapi.Config, error) {
-
-	basicClientConfig := kubeadmutil.CreateBasicClientConfig(
-		clusterName,
-		// TODO this is not great, but there is only one address we can use here
-		// so we'll pick the first one, there is much of chance to have an empty
-		// slice by the time this gets called
-		fmt.Sprintf("https://%s:%d", cfg.AdvertiseAddresses[0], cfg.BindPort),
-		certutil.EncodeCertPEM(caCert),
-	)
-
+func CreateCertsAndConfigForClients(clusterName string, cfg kubeadmapi.API, clientNames []string, caKey *rsa.PrivateKey, caCert *x509.Certificate) (map[string]*clientcmdapi.Config, error) {
 	configs := map[string]*clientcmdapi.Config{}
-
 	for _, client := range clientNames {
-		key, cert, err := newClientKeyAndCert(caCert, caKey)
+		certConfig := certutil.Config{
+			CommonName:   client,
+			Organization: client,
+		}
+		key, err := certutil.NewPrivateKey()
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to create private key [%v]", err)
+		}
+		cert, err := certutil.NewSignedCert(certConfig,key,caCert, caKey)
 		if err != nil {
 			return nil, fmt.Errorf("<master/kubeconfig> failure while creating %s client certificate - %v", client, err)
 		}
-		config := kubeadmutil.MakeClientConfigWithCerts(
-			basicClientConfig,
-			clusterName,
-			client,
-			certutil.EncodePrivateKeyPEM(key),
-			certutil.EncodeCertPEM(cert),
-		)
-		configs[client] = config
+		server := fmt.Sprintf("https://%s:%d", cfg.AdvertiseAddresses[0], cfg.BindPort)
+		conf := kubeadmutil.CreateWithCerts(server,
+			clusterName, client, certutil.EncodeCertPEM(caCert), certutil.EncodePrivateKeyPEM(key), certutil.EncodeCertPEM(cert))
+		configs[client] = conf
 	}
-
 	return configs, nil
 }
