@@ -33,11 +33,11 @@ func CreateCertsAndConfigForClients(clusterName string, cfg kubeadmapi.API, clie
 	for _, client := range clientNames {
 		certConfig := certutil.Config{
 			CommonName:   client,
-			Organization: client,
+			Organization: []string{client},
 		}
 		key, err := certutil.NewPrivateKey()
 		if err != nil {
-			return nil, nil, fmt.Errorf("unable to create private key [%v]", err)
+			return nil, fmt.Errorf("unable to create private key [%v]", err)
 		}
 		cert, err := certutil.NewSignedCert(certConfig,key,caCert, caKey)
 		if err != nil {
