@@ -182,7 +182,7 @@ func NewInit(cfgPath string, cfg *kubeadmapi.MasterConfiguration, skipPreFlight 
 		}
 		cfg.API.AdvertiseAddresses = []string{ip.String()}
 	}
-
+	preflight.TryStartKubelet()
 	if !skipPreFlight {
 		fmt.Println("Running pre-flight checks")
 		err := preflight.RunInitMasterChecks(cfg)
@@ -201,7 +201,6 @@ func NewInit(cfgPath string, cfg *kubeadmapi.MasterConfiguration, skipPreFlight 
 			return nil, fmt.Errorf("cloud provider %q is not supported, you can use any of %v, or leave it unset.\n", cfg.CloudProvider, cloudprovider.CloudProviders())
 		}
 	}
-	preflight.TryStartKubelet()
 	return &Init{cfg: cfg}, nil
 }
 
