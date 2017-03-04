@@ -218,7 +218,7 @@ func RunInitMasterChecks(cfg *kubeadmapi.MasterConfiguration) error {
 	checks := []PreFlightCheck{
 		IsRootCheck{root: true},
 		HostnameCheck{},
-		ServiceCheck{Service: "kubelet"},
+		//ServiceCheck{Service: "kubelet"},
 		ServiceCheck{Service: "docker"},
 		PortOpenCheck{port: int(cfg.API.BindPort)},
 		PortOpenCheck{port: 2379},
@@ -254,7 +254,7 @@ func RunJoinNodeChecks(cfg *kubeadmapi.NodeConfiguration) error {
 		IsRootCheck{root: true},
 		HostnameCheck{},
 		ServiceCheck{Service: "docker"},
-		ServiceCheck{Service: "kubelet"},
+		//ServiceCheck{Service: "kubelet"},
 		PortOpenCheck{port: 10250},
 		HttpProxyCheck{Proto: "https", Host: cfg.MasterAddresses[0], Port: int(cfg.APIPort)},
 		HttpProxyCheck{Proto: "http", Host: cfg.MasterAddresses[0], Port: int(cfg.DiscoveryPort)},
