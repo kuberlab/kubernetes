@@ -39,7 +39,7 @@ func CreateBasicClientConfig(clusterName string, serverURL string, caCert []byte
 }
 
 func MakeClientConfigWithCerts(config *clientcmdapi.Config, clusterName string, userName string, clientKey []byte, clientCert []byte) *clientcmdapi.Config {
-	newConfig := config
+	newConfig := *config
 	name := fmt.Sprintf("%s@%s", userName, clusterName)
 
 	authInfo := clientcmdapi.NewAuthInfo()
@@ -54,7 +54,7 @@ func MakeClientConfigWithCerts(config *clientcmdapi.Config, clusterName string, 
 	newConfig.Contexts[name] = context
 	newConfig.CurrentContext = name
 
-	return newConfig
+	return &newConfig
 }
 
 func MakeClientConfigWithToken(config *clientcmdapi.Config, clusterName string, userName string, token string) *clientcmdapi.Config {
