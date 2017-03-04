@@ -229,7 +229,6 @@ func (i *Init) Run(out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	preflight.TryStartKubelet()
 	// kubeadm is responsible for writing the following kubeconfig file, which
 	// kubelet should be waiting for. Help user avoid foot-shooting by refusing to
 	// write a file that has already been written (the kubelet will be up and
@@ -244,7 +243,7 @@ func (i *Init) Run(out io.Writer) error {
 			return err
 		}
 	}
-
+	preflight.TryStartKubelet()
 	client, err := kubemaster.CreateClientAndWaitForAPI(kubeconfigs["admin"])
 	if err != nil {
 		return err
