@@ -182,7 +182,6 @@ func NewInit(cfgPath string, cfg *kubeadmapi.MasterConfiguration, skipPreFlight 
 		}
 		cfg.API.AdvertiseAddresses = []string{ip.String()}
 	}
-	preflight.TryStartKubelet()
 	if !skipPreFlight {
 		fmt.Println("Running pre-flight checks")
 		err := preflight.RunInitMasterChecks(cfg)
@@ -230,7 +229,7 @@ func (i *Init) Run(out io.Writer) error {
 	if err != nil {
 		return err
 	}
-
+	preflight.TryStartKubelet()
 	// kubeadm is responsible for writing the following kubeconfig file, which
 	// kubelet should be waiting for. Help user avoid foot-shooting by refusing to
 	// write a file that has already been written (the kubelet will be up and
