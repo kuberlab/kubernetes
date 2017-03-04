@@ -227,7 +227,7 @@ func (i *Init) Run(out io.Writer) error {
 		return err
 	}
 
-	kubeconfigs, err := kubemaster.CreateCertsAndConfigForClients(i.cfg.API,i.cfg.ClusterName,[]string{"kubelet", "admin"}, caKey, caCert)
+	kubeconfigs, err := kubemaster.CreateCertsAndConfigForClients(i.cfg.ClusterName,i.cfg.API,[]string{"kubelet", "admin"}, caKey, caCert)
 	if err != nil {
 		return err
 	}
