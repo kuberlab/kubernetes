@@ -78,6 +78,7 @@ type NodeConfiguration struct {
 	Secrets         Secrets
 	APIPort         int32
 	DiscoveryPort   int32
+	ClusterName     string
 }
 
 // ClusterInfo TODO add description
