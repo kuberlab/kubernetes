@@ -47,8 +47,12 @@ func PerformTLSBootstrap(connection *ConnectionDetails) (*clientcmdapi.Config, e
 	fmt.Printf("<node/csr> received signed certificate from the API server:\n%s\n", fmtCert)
 	fmt.Println("<node/csr> generating kubelet configuration")
 
-	finalConfig := kubeadmutil.CreateWithCerts(connection.Endpoint,
-		"test", fmt.Sprintf("kubelet-%s", connection.NodeName),connection.CACert,key,cert)
+
+	bareClientConfig := kubeadmutil.CreateBasicClientConfig("test", connection.Endpoint, connection.CACert)
+	finalConfig := kubeadmutil.MakeClientConfigWithCerts(
+		bareClientConfig, "test", fmt.Sprintf("kubelet-%s", connection.NodeName),
+		key, cert,
+	)
 
 	return finalConfig, nil
 }
