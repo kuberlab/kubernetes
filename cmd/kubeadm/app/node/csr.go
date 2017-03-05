@@ -27,7 +27,7 @@ import (
 
 // PerformTLSBootstrap executes a certificate signing request with the
 // provided connection details.
-func PerformTLSBootstrap(connection *ConnectionDetails) (*clientcmdapi.Config, error) {
+func PerformTLSBootstrap(clusterName string,connection *ConnectionDetails) (*clientcmdapi.Config, error) {
 	csrClient := connection.CertClient.CertificateSigningRequests()
 
 	fmt.Println("<node/csr> created API client to obtain unique certificate for this node, generating keys and certificate signing request")
@@ -48,9 +48,9 @@ func PerformTLSBootstrap(connection *ConnectionDetails) (*clientcmdapi.Config, e
 	fmt.Println("<node/csr> generating kubelet configuration")
 
 
-	bareClientConfig := kubeadmutil.CreateBasicClientConfig("test", connection.Endpoint, connection.CACert)
+	bareClientConfig := kubeadmutil.CreateBasicClientConfig(clusterName, connection.Endpoint, connection.CACert)
 	finalConfig := kubeadmutil.MakeClientConfigWithCerts(
-		bareClientConfig, "test", fmt.Sprintf("kubelet-%s", connection.NodeName),
+		bareClientConfig, clusterName, fmt.Sprintf("kubelet-%s", connection.NodeName),
 		key, cert,
 	)
 

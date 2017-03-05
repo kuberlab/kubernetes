@@ -39,7 +39,7 @@ func CreateCertsAndConfigForClients(clusterName string, cfg kubeadmapi.API, clie
 		if err != nil {
 			return nil, fmt.Errorf("unable to create private key [%v]", err)
 		}
-		cert, err := certutil.NewSignedCert(certConfig,key,caCert, caKey)
+		cert, err := certutil.NewSignedCert(certConfig, key, caCert, caKey)
 		if err != nil {
 			return nil, fmt.Errorf("<master/kubeconfig> failure while creating %s client certificate - %v", client, err)
 		}

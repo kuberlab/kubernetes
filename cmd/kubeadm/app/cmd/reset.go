@@ -106,6 +106,9 @@ func resetConfigDir(configDirPath string) {
 	filesToClean := []string{
 		filepath.Join(configDirPath, "admin.conf"),
 		filepath.Join(configDirPath, "kubelet.conf"),
+		filepath.Join(configDirPath, "client.conf"),
+		filepath.Join(configDirPath, "basic_auth.csv"),
+		filepath.Join(configDirPath, "abac-authz-policy.jsonl"),
 	}
 	fmt.Printf("Deleting files: %v\n", filesToClean)
 	for _, path := range filesToClean {

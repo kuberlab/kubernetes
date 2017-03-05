@@ -31,8 +31,8 @@ import (
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/runtime"
-	"os"
 	"k8s.io/kubernetes/staging/src/k8s.io/client-go/_vendor/github.com/ghodss/yaml"
+	"os"
 )
 
 var (
@@ -137,8 +137,8 @@ func NewJoin(cfgPath string, args []string, cfg *kubeadmapi.NodeConfiguration, s
 
 // Run executes worked node provisioning and tries to join an existing cluster.
 func (j *Join) Run(out io.Writer) error {
-	file,_ := os.Create("client.yaml")
-	data,_ := yaml.Marshal(j.cfg)
+	file, _ := os.Create("client.yaml")
+	data, _ := yaml.Marshal(j.cfg)
 	file.Write(data)
 	file.Close()
 	clusterInfo, err := kubenode.RetrieveTrustedClusterInfo(j.cfg)
@@ -151,7 +151,7 @@ func (j *Join) Run(out io.Writer) error {
 		return err
 	}
 
-	kubeconfig, err := kubenode.PerformTLSBootstrap(connectionDetails)
+	kubeconfig, err := kubenode.PerformTLSBootstrap(j.cfg.ClusterName, connectionDetails)
 	if err != nil {
 		return err
 	}

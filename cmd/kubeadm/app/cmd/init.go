@@ -32,10 +32,13 @@ import (
 	"k8s.io/kubernetes/cmd/kubeadm/app/preflight"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/pkg/api"
+	cmdapi "k8s.io/kubernetes/pkg/client/unversioned/clientcmd/api"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 	_ "k8s.io/kubernetes/pkg/cloudprovider/providers"
 	"k8s.io/kubernetes/pkg/runtime"
 	netutil "k8s.io/kubernetes/pkg/util/net"
+	"os"
+	"path"
 )
 
 const (
@@ -225,7 +228,7 @@ func (i *Init) Run(out io.Writer) error {
 		return err
 	}
 
-	kubeconfigs, err := kubemaster.CreateCertsAndConfigForClients(i.cfg.ClusterName,i.cfg.API,[]string{"kubelet", "admin"}, caKey, caCert)
+	kubeconfigs, err := kubemaster.CreateCertsAndConfigForClients(i.cfg.ClusterName, i.cfg.API, []string{"kubelet", "admin"}, caKey, caCert)
 	if err != nil {
 		return err
 	}
@@ -242,6 +245,24 @@ func (i *Init) Run(out io.Writer) error {
 		if err := kubeadmutil.WriteKubeconfigIfNotExists(name, kubeconfig); err != nil {
 			return err
 		}
+	}
+	if _, password, err := kubeadmutil.RandBytes(8); err != nil {
+		return err
+	} else {
+		adminConf := kubeconfigs["admin"]
+		adminConf.AuthInfos["kubernetes-basic-auth"] = &cmdapi.AuthInfo{
+			Username: "admin",
+			Password: password,
+		}
+		if err := kubeadmutil.WriteKubeconfigIfNotExists("client", adminConf); err != nil {
+			return err
+		}
+		if err := writeBasicAuth(password); err != nil {
+			return err
+		}
+	}
+	if err := writeAbac(); err != nil {
+		return err
 	}
 	preflight.TryStartKubelet()
 	client, err := kubemaster.CreateClientAndWaitForAPI(kubeconfigs["admin"])
@@ -279,4 +300,47 @@ func generateJoinArgs(data joinArgsData) (string, error) {
 		return "", err
 	}
 	return b.String(), nil
+}
+
+func writeBasicAuth(password string) error {
+	if err := os.MkdirAll(kubeadmapi.GlobalEnvParams.KubernetesDir, 0700); err != nil {
+		return fmt.Errorf("<util/kubeconfig> failed to create directory %q [%v]", kubeadmapi.GlobalEnvParams.KubernetesDir, err)
+	}
+
+	filename := path.Join(kubeadmapi.GlobalEnvParams.KubernetesDir, "basic_auth.csv")
+	// Create and open the file, only if it does not already exist.
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_SYNC, 0600)
+	if err != nil {
+		return fmt.Errorf("<util/kubeconfig> failed to create %q, and can't be trucated [%v]", filename, err)
+	}
+	f.WriteString(fmt.Sprintf("%s,admin,admin", password))
+	f.Close()
+	return nil
+}
+
+func writeAbac() error {
+	if err := os.MkdirAll(kubeadmapi.GlobalEnvParams.KubernetesDir, 0700); err != nil {
+		return fmt.Errorf("<util/kubeconfig> failed to create directory %q [%v]", kubeadmapi.GlobalEnvParams.KubernetesDir, err)
+	}
+
+	filename := path.Join(kubeadmapi.GlobalEnvParams.KubernetesDir, "abac-authz-policy.jsonl")
+	// Create and open the file, only if it does not already exist.
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	if err != nil {
+		return fmt.Errorf("<util/kubeconfig> failed to create %q, and can't be trucated [%v]", filename, err)
+	}
+	f.WriteString(`
+{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"user":"admin", "namespace": "*", "resource": "*", "apiGroup": "*", "nonResourcePath": "*"}}
+{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"user":"admin", "namespace": "*", "resource": "*", "apiGroup": "*", "nonResourcePath": "*"}}
+{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"user":"kubelet", "namespace": "*", "resource": "*", "apiGroup": "*", "nonResourcePath": "*"}}
+{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"user":"kube_proxy", "namespace": "*", "resource": "*", "apiGroup": "*", "nonResourcePath": "*"}}
+{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"user":"kubecfg", "namespace": "*", "resource": "*", "apiGroup": "*", "nonResourcePath": "*"}}
+{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"user":"client", "namespace": "*", "resource": "*", "apiGroup": "*", "nonResourcePath": "*"}}
+{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"group":"system:serviceaccounts", "namespace": "*", "resource": "*", "apiGroup": "*", "nonResourcePath": "*"}}
+{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"group":"system:kubelet-bootstrap", "namespace": "*", "resource": "*", "apiGroup": "*", "nonResourcePath": "*"}}
+{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"group":"system:kubelet", "namespace": "*", "resource": "*", "apiGroup": "*", "nonResourcePath": "*"}}
+{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"group":"system:nodes", "namespace": "*", "resource": "*", "apiGroup": "*", "nonResourcePath": "*"}}
+	`)
+	f.Close()
+	return nil
 }
