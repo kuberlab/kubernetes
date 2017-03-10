@@ -58,9 +58,9 @@ func EstablishMasterConnection(s *kubeadmapi.NodeConfiguration, clusterInfo *kub
 
 	endpoints := clusterInfo.Endpoints
 	caCert := []byte(clusterInfo.CertificateAuthorities[0])
-
+	var once sync.Once
 	stopChan := make(chan struct{})
-	result := make(chan *ConnectionDetails)
+	var resultingKubeConfig *ConnectionDetails
 	var wg sync.WaitGroup
 	for _, endpoint := range endpoints {
 		clientSet, err := createClients(caCert, endpoint, s.Secrets.BearerToken, nodeName)
@@ -80,29 +80,25 @@ func EstablishMasterConnection(s *kubeadmapi.NodeConfiguration, clusterInfo *kub
 				}
 				fmt.Printf("<node/bootstrap> successfully established connection with endpoint %s\n", apiEndpoint)
 				// connection established, stop all wait threads
-				close(stopChan)
-				result <- &ConnectionDetails{
-					CertClient: clientSet.CertificatesClient,
-					Endpoint:   apiEndpoint,
-					CACert:     caCert,
-					NodeName:   nodeName,
-				}
+				once.Do(func() {
+					close(stopChan)
+					resultingKubeConfig = &ConnectionDetails{
+						CertClient: clientSet.CertificatesClient,
+						Endpoint:   apiEndpoint,
+						CACert:     caCert,
+						NodeName:   nodeName,
+					}
+				})
 			}, retryTimeout*time.Second, stopChan)
 		}(endpoint)
 	}
 
-	go func() {
-		wg.Wait()
-		// all wait.Until() calls have finished now
-		close(result)
-	}()
-
-	establishedConnection, ok := <-result
-	if !ok {
+	wg.Wait()
+	if resultingKubeConfig==nil {
 		return nil, fmt.Errorf("<node/bootstrap> failed to create bootstrap clients " +
 			"for any of the provided API endpoints")
 	}
-	return establishedConnection, nil
+	return resultingKubeConfig, nil
 }
 
 // creates a set of clients for this endpoint

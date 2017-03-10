@@ -1,7 +1,0 @@
-APIPort: 443
-ClusterName: ""
-DiscoveryPort: 9898
-MasterAddresses:
-- 10.128.0.2
-Secrets:
-  GivenToken: 94c55d.f29bb1e9d0d2e1f3
