@@ -39,6 +39,7 @@ type MasterConfiguration struct {
 	KubernetesVersion string
 	CloudProvider     string
 	ClusterName       string
+	DNSRequired       bool
 }
 
 type API struct {

@@ -94,7 +94,7 @@ func EstablishMasterConnection(s *kubeadmapi.NodeConfiguration, clusterInfo *kub
 	}
 
 	wg.Wait()
-	if resultingKubeConfig==nil {
+	if resultingKubeConfig == nil {
 		return nil, fmt.Errorf("<node/bootstrap> failed to create bootstrap clients " +
 			"for any of the provided API endpoints")
 	}

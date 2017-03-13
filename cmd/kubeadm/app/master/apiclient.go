@@ -106,7 +106,7 @@ func CreateClientAndWaitForAPI(adminConfig *clientcmdapi.Config) (*clientset.Cli
 func standardLabels(n string) map[string]string {
 	return map[string]string{
 		"component": n, "name": n, "k8s-app": n,
-		"kubernetes.io/cluster-service": "true", "tier": "node",
+		"tier": "node",
 	}
 }
 
