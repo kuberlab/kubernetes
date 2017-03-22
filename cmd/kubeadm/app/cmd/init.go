@@ -86,6 +86,10 @@ func NewCmdInit(out io.Writer) *cobra.Command {
 		&cfg.Secrets.GivenToken, "token", cfg.Secrets.GivenToken,
 		"Shared secret used to secure cluster bootstrap; if none is provided, one will be generated for you",
 	)
+	cmd.PersistentFlags().StringVar(
+		&cfg.Etcd.Discovery, "etcd-discovery-token", cfg.Etcd.Discovery,
+		"Etcd discovery token to use for clustering and syncronizing etcd",
+	)
 	cmd.PersistentFlags().StringSliceVar(
 		&cfg.API.AdvertiseAddresses, "api-advertise-addresses", cfg.API.AdvertiseAddresses,
 		"The IP addresses to advertise, in case autodetection fails",

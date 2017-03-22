@@ -24,6 +24,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/kuberlab/kubernetes/pkg/util/net"
+	"github.com/pborman/uuid"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	"k8s.io/kubernetes/cmd/kubeadm/app/images"
 	"k8s.io/kubernetes/pkg/api/resource"
@@ -83,14 +85,38 @@ func WriteStaticPodManifests(cfg *kubeadmapi.MasterConfiguration) error {
 
 	// Add etcd static pod spec only if external etcd is not configured
 	if len(cfg.Etcd.Endpoints) == 0 {
-		staticPodSpecs[etcd] = componentPod(api.Container{
-			Name: etcd,
-			Command: []string{
+		var cmd []string
+
+		ip, err := net.ChooseHostInterface()
+		if len(cfg.Etcd.Discovery) > 1 && err == nil {
+			name := uuid.New()
+			cmd = []string{
+				"etcd",
+				"--name",
+				name,
+				"--initial-advertise-peer-urls",
+				fmt.Sprintf("http://%v:2380", ip.String()),
+				"--listen-peer-urls",
+				fmt.Sprintf("http://%v:2380", ip.String()),
+				"--listen-client-urls",
+				fmt.Sprintf("http://%v:2379,http://127.0.0.1:2379", ip.String()),
+				"--advertise-client-urls",
+				fmt.Sprintf("http://%v:2379", ip.String()),
+				"--discovery",
+				cfg.Etcd.Discovery,
+				"--data-dir=/var/etcd/data",
+			}
+		} else {
+			cmd = []string{
 				"etcd",
 				"--listen-client-urls=http://127.0.0.1:2379",
 				"--advertise-client-urls=http://127.0.0.1:2379",
 				"--data-dir=/var/etcd/data",
-			},
+			}
+		}
+		staticPodSpecs[etcd] = componentPod(api.Container{
+			Name:          etcd,
+			Command:       cmd,
 			VolumeMounts:  []api.VolumeMount{certsVolumeMount(), etcdVolumeMount(), k8sVolumeMount()},
 			Image:         images.GetCoreImage(images.KubeEtcdImage, cfg, kubeadmapi.GlobalEnvParams.EtcdImage),
 			LivenessProbe: componentProbe(2379, "/health"),

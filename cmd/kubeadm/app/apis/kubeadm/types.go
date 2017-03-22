@@ -60,6 +60,7 @@ type Networking struct {
 
 type Etcd struct {
 	Endpoints []string
+	Discovery string
 	CAFile    string
 	CertFile  string
 	KeyFile   string
