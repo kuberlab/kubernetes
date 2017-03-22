@@ -24,7 +24,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/kuberlab/kubernetes/pkg/util/net"
+	"k8s.io/kubernetes/pkg/util/net"
 	"github.com/pborman/uuid"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	"k8s.io/kubernetes/cmd/kubeadm/app/images"
