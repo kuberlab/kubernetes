@@ -24,7 +24,6 @@ import (
 	"path"
 	"strings"
 
-	"k8s.io/kubernetes/pkg/util/net"
 	"github.com/pborman/uuid"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	"k8s.io/kubernetes/cmd/kubeadm/app/images"
@@ -33,6 +32,7 @@ import (
 	api "k8s.io/kubernetes/pkg/api/v1"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/util/intstr"
+	"k8s.io/kubernetes/pkg/util/net"
 )
 
 // Static pod definitions in golang form are included below so that `kubeadm init` can get going.
@@ -89,7 +89,12 @@ func WriteStaticPodManifests(cfg *kubeadmapi.MasterConfiguration) error {
 
 		ip, err := net.ChooseHostInterface()
 		if len(cfg.Etcd.Discovery) > 1 && err == nil {
-			name := uuid.New()
+			name, err := os.Hostname()
+
+			if err != nil {
+				name = uuid.New()
+			}
+
 			cmd = []string{
 				"etcd",
 				"--name",

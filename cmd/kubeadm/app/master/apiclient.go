@@ -31,6 +31,7 @@ import (
 	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 	clientcmdapi "k8s.io/kubernetes/pkg/client/unversioned/clientcmd/api"
 	"k8s.io/kubernetes/pkg/util/wait"
+	"strings"
 )
 
 const apiCallRetryInterval = 500 * time.Millisecond
@@ -251,6 +252,10 @@ func createDummyDeployment(client *clientset.Clientset) {
 	wait.PollInfinite(apiCallRetryInterval, func() (bool, error) {
 		// TODO: we should check the error, as some cases may be fatal
 		if _, err := client.Extensions().Deployments(api.NamespaceSystem).Create(dummyDeployment); err != nil {
+			// Skip in case of it is already exists.
+			if strings.Contains(err.Error(), "already exists") {
+				return true, nil
+			}
 			fmt.Printf("<master/apiclient> failed to create test deployment [%v] (will retry)", err)
 			return false, nil
 		}
