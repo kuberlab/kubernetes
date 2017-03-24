@@ -36,10 +36,26 @@ type MasterConfiguration struct {
 	Discovery         Discovery
 	Etcd              Etcd
 	Networking        Networking
+	Security          Security
 	KubernetesVersion string
 	CloudProvider     string
 	ClusterName       string
 	DNSRequired       bool
+}
+
+type Security struct {
+	CAKeyPem         string
+	CACertPem        string
+	APIServerKeyPem  string
+	APIServerCertPem string
+	SAKeyPem         string
+	ClientConf       map[string]ClientKeyCert
+	Password         string
+}
+
+type ClientKeyCert struct {
+	Key  string
+	Cert string
 }
 
 type API struct {

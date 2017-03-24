@@ -28,24 +28,37 @@ import (
 	certutil "k8s.io/kubernetes/pkg/util/cert"
 )
 
-func CreateCertsAndConfigForClients(clusterName string, cfg kubeadmapi.API, clientNames []string, caKey *rsa.PrivateKey, caCert *x509.Certificate) (map[string]*clientcmdapi.Config, error) {
+func CreateCertsAndConfigForClients(clusterName string, cfg kubeadmapi.API, clientNames []string, caKey *rsa.PrivateKey, caCert *x509.Certificate, security kubeadmapi.Security) (map[string]*clientcmdapi.Config, error) {
 	configs := map[string]*clientcmdapi.Config{}
 	for _, client := range clientNames {
 		certConfig := certutil.Config{
 			CommonName:   client,
 			Organization: []string{client},
 		}
-		key, err := certutil.NewPrivateKey()
-		if err != nil {
-			return nil, fmt.Errorf("unable to create private key [%v]", err)
-		}
-		cert, err := certutil.NewSignedCert(certConfig, key, caCert, caKey)
-		if err != nil {
-			return nil, fmt.Errorf("<master/kubeconfig> failure while creating %s client certificate - %v", client, err)
+		keyCert, exist := security.ClientConf[client]
+
+		var keyPem []byte
+		var certPem []byte
+
+		if !exist {
+			key, err := certutil.NewPrivateKey()
+			if err != nil {
+				return nil, fmt.Errorf("unable to create private key [%v]", err)
+			}
+			cert, err := certutil.NewSignedCert(certConfig, key, caCert, caKey)
+			if err != nil {
+				return nil, fmt.Errorf("<master/kubeconfig> failure while creating %s client certificate - %v", client, err)
+			}
+			keyPem = certutil.EncodePrivateKeyPEM(key)
+			certPem = certutil.EncodeCertPEM(cert)
+		} else {
+			keyPem = []byte(keyCert.Key)
+			certPem = []byte(keyCert.Cert)
 		}
 		server := fmt.Sprintf("https://%s:%d", cfg.AdvertiseAddresses[0], cfg.BindPort)
-		conf := kubeadmutil.CreateWithCerts(server,
-			clusterName, client, certutil.EncodeCertPEM(caCert), certutil.EncodePrivateKeyPEM(key), certutil.EncodeCertPEM(cert))
+		conf := kubeadmutil.CreateWithCerts(
+			server, clusterName, client, certutil.EncodeCertPEM(caCert), keyPem, certPem,
+		)
 		configs[client] = conf
 	}
 	return configs, nil

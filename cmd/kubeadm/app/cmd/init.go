@@ -232,7 +232,7 @@ func (i *Init) Run(out io.Writer) error {
 		return err
 	}
 
-	kubeconfigs, err := kubemaster.CreateCertsAndConfigForClients(i.cfg.ClusterName, i.cfg.API, []string{"kubelet", "admin"}, caKey, caCert)
+	kubeconfigs, err := kubemaster.CreateCertsAndConfigForClients(i.cfg.ClusterName, i.cfg.API, []string{"kubelet", "admin"}, caKey, caCert, i.cfg.Security)
 	if err != nil {
 		return err
 	}
@@ -250,20 +250,27 @@ func (i *Init) Run(out io.Writer) error {
 			return err
 		}
 	}
-	if _, password, err := kubeadmutil.RandBytes(8); err != nil {
-		return err
+
+	var password string
+	if i.cfg.Security.Password != "" {
+		password = i.cfg.Security.Password
 	} else {
-		adminConf := kubeconfigs["admin"]
-		adminConf.AuthInfos["kubernetes-basic-auth"] = &cmdapi.AuthInfo{
-			Username: "admin",
-			Password: password,
-		}
-		if err := kubeadmutil.WriteKubeconfigIfNotExists("client", adminConf); err != nil {
+		var err error
+		if _, password, err = kubeadmutil.RandBytes(8); err != nil {
 			return err
 		}
-		if err := writeBasicAuth(password); err != nil {
-			return err
-		}
+	}
+
+	adminConf := kubeconfigs["admin"]
+	adminConf.AuthInfos["kubernetes-basic-auth"] = &cmdapi.AuthInfo{
+		Username: "admin",
+		Password: password,
+	}
+	if err := kubeadmutil.WriteKubeconfigIfNotExists("client", adminConf); err != nil {
+		return err
+	}
+	if err := writeBasicAuth(password); err != nil {
+		return err
 	}
 	if err := writeAbac(); err != nil {
 		return err

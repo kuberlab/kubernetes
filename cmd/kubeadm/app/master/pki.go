@@ -139,6 +139,31 @@ func newServiceAccountKey() (*rsa.PrivateKey, error) {
 	return key, nil
 }
 
+func parseKeyCertPEM(keyPem []byte, certPem []byte) (key *rsa.PrivateKey, cert *x509.Certificate, err error) {
+	var ok bool
+
+	if keyPem != nil {
+		KeyI, err := certutil.ParsePrivateKeyPEM(keyPem)
+		if err != nil {
+			return nil, nil, err
+		}
+		key, ok = KeyI.(*rsa.PrivateKey)
+
+		if !ok {
+			return nil, nil, err
+		}
+	}
+	if certPem != nil {
+		certA, err := certutil.ParseCertsPEM(certPem)
+
+		if err != nil {
+			return nil, nil, err
+		}
+		cert = certA[0]
+	}
+	return key, cert, nil
+}
+
 // CreatePKIAssets will create and write to disk all PKI assets necessary to establish the control plane.
 // It first generates a self-signed CA certificate, a server certificate (signed by the CA) and a key for
 // signing service account tokens. It returns CA key and certificate, which is convenient for use with
@@ -160,9 +185,18 @@ func CreatePKIAssets(cfg *kubeadmapi.MasterConfiguration) (*rsa.PrivateKey, *x50
 
 	pkiPath := path.Join(kubeadmapi.GlobalEnvParams.HostPKIPath)
 
-	caKey, caCert, err := newCertificateAuthority()
-	if err != nil {
-		return nil, nil, fmt.Errorf("<master/pki> failure while creating CA keys and certificate - %v", err)
+	var caKey, apiKey, saKey *rsa.PrivateKey
+	var caCert, apiCert *x509.Certificate
+
+	if cfg.Security.CAKeyPem != "" && cfg.Security.CACertPem != "" {
+		if caKey, caCert, err = parseKeyCertPEM([]byte(cfg.Security.CAKeyPem), []byte(cfg.Security.CACertPem)); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		caKey, caCert, err = newCertificateAuthority()
+		if err != nil {
+			return nil, nil, fmt.Errorf("<master/pki> failure while creating CA keys and certificate - %v", err)
+		}
 	}
 
 	if err := writeKeysAndCert(pkiPath, "ca", caKey, caCert); err != nil {
@@ -172,9 +206,15 @@ func CreatePKIAssets(cfg *kubeadmapi.MasterConfiguration) (*rsa.PrivateKey, *x50
 	pub, prv, cert := pathsKeysCerts(pkiPath, "ca")
 	fmt.Printf("Public: %s\nPrivate: %s\nCert: %s\n", pub, prv, cert)
 
-	apiKey, apiCert, err := newServerKeyAndCert(cfg, caCert, caKey, altNames)
-	if err != nil {
-		return nil, nil, fmt.Errorf("<master/pki> failure while creating API server keys and certificate - %v", err)
+	if cfg.Security.APIServerKeyPem != "" && cfg.Security.APIServerCertPem != "" {
+		if apiKey, apiCert, err = parseKeyCertPEM([]byte(cfg.Security.APIServerKeyPem), []byte(cfg.Security.APIServerCertPem)); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		apiKey, apiCert, err = newServerKeyAndCert(cfg, caCert, caKey, altNames)
+		if err != nil {
+			return nil, nil, fmt.Errorf("<master/pki> failure while creating API server keys and certificate - %v", err)
+		}
 	}
 
 	if err := writeKeysAndCert(pkiPath, "apiserver", apiKey, apiCert); err != nil {
@@ -184,9 +224,15 @@ func CreatePKIAssets(cfg *kubeadmapi.MasterConfiguration) (*rsa.PrivateKey, *x50
 	pub, prv, cert = pathsKeysCerts(pkiPath, "apiserver")
 	fmt.Printf("Public: %s\nPrivate: %s\nCert: %s\n", pub, prv, cert)
 
-	saKey, err := newServiceAccountKey()
-	if err != nil {
-		return nil, nil, fmt.Errorf("<master/pki> failure while creating service account signing keys [%v]", err)
+	if cfg.Security.SAKeyPem != "" {
+		if saKey, _, err = parseKeyCertPEM([]byte(cfg.Security.SAKeyPem), nil); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		saKey, err = newServiceAccountKey()
+		if err != nil {
+			return nil, nil, fmt.Errorf("<master/pki> failure while creating service account signing keys [%v]", err)
+		}
 	}
 	if err := writeKeysAndCert(pkiPath, "sa", saKey, nil); err != nil {
 		return nil, nil, fmt.Errorf("<master/pki> failure while saving service account signing keys - %v", err)
