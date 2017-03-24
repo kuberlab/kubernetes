@@ -51,7 +51,7 @@ func CreateCertsAndConfigForClients(clusterName string, cfg kubeadmapi.API, clie
 			}
 			keyPem = certutil.EncodePrivateKeyPEM(key)
 			certPem = certutil.EncodeCertPEM(cert)
-		} else {
+		} else if len(keyCert.Key) > 1 && len(keyCert.Cert) > 1 {
 			fmt.Printf("<master/kubeconfig> Using existing client keys for %v", client)
 			keyPem = []byte(keyCert.Key)
 			certPem = []byte(keyCert.Cert)
