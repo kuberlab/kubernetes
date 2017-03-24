@@ -189,6 +189,7 @@ func CreatePKIAssets(cfg *kubeadmapi.MasterConfiguration) (*rsa.PrivateKey, *x50
 	var caCert, apiCert *x509.Certificate
 
 	if cfg.Security.CAKeyPem != "" && cfg.Security.CACertPem != "" {
+		fmt.Println("<master/pki> Using existing CA keys")
 		if caKey, caCert, err = parseKeyCertPEM([]byte(cfg.Security.CAKeyPem), []byte(cfg.Security.CACertPem)); err != nil {
 			return nil, nil, err
 		}
@@ -207,6 +208,7 @@ func CreatePKIAssets(cfg *kubeadmapi.MasterConfiguration) (*rsa.PrivateKey, *x50
 	fmt.Printf("Public: %s\nPrivate: %s\nCert: %s\n", pub, prv, cert)
 
 	if cfg.Security.APIServerKeyPem != "" && cfg.Security.APIServerCertPem != "" {
+		fmt.Println("<master/pki> Using existing API server keys")
 		if apiKey, apiCert, err = parseKeyCertPEM([]byte(cfg.Security.APIServerKeyPem), []byte(cfg.Security.APIServerCertPem)); err != nil {
 			return nil, nil, err
 		}
@@ -225,6 +227,7 @@ func CreatePKIAssets(cfg *kubeadmapi.MasterConfiguration) (*rsa.PrivateKey, *x50
 	fmt.Printf("Public: %s\nPrivate: %s\nCert: %s\n", pub, prv, cert)
 
 	if cfg.Security.SAKeyPem != "" {
+		fmt.Println("<master/pki> Using existing SA server keys")
 		if saKey, _, err = parseKeyCertPEM([]byte(cfg.Security.SAKeyPem), nil); err != nil {
 			return nil, nil, err
 		}

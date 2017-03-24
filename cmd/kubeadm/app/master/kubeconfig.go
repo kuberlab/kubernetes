@@ -52,6 +52,7 @@ func CreateCertsAndConfigForClients(clusterName string, cfg kubeadmapi.API, clie
 			keyPem = certutil.EncodePrivateKeyPEM(key)
 			certPem = certutil.EncodeCertPEM(cert)
 		} else {
+			fmt.Printf("<master/kubeconfig> Using existing client keys for %v", client)
 			keyPem = []byte(keyCert.Key)
 			certPem = []byte(keyCert.Cert)
 		}
