@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	// TODO: "k8s.io/client-go/client/tools/clientcmd/api"
+	"encoding/base64"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	clientcmdapi "k8s.io/kubernetes/pkg/client/unversioned/clientcmd/api"
@@ -29,6 +30,8 @@ import (
 )
 
 func CreateCertsAndConfigForClients(clusterName string, cfg kubeadmapi.API, clientNames []string, caKey *rsa.PrivateKey, caCert *x509.Certificate, security kubeadmapi.Security) (map[string]*clientcmdapi.Config, error) {
+	var err error
+
 	configs := map[string]*clientcmdapi.Config{}
 	for _, client := range clientNames {
 		certConfig := certutil.Config{
@@ -53,8 +56,12 @@ func CreateCertsAndConfigForClients(clusterName string, cfg kubeadmapi.API, clie
 			certPem = certutil.EncodeCertPEM(cert)
 		} else if len(keyCert.Key) > 1 && len(keyCert.Cert) > 1 {
 			fmt.Printf("<master/kubeconfig> Using existing client keys for %v", client)
-			keyPem = []byte(keyCert.Key)
-			certPem = []byte(keyCert.Cert)
+			if keyPem, err = base64.StdEncoding.DecodeString(keyCert.Key); err != nil {
+				return nil, fmt.Errorf("<master/kubeconfig> failure while decoding key pem: %v", err)
+			}
+			if certPem, err = base64.StdEncoding.DecodeString(keyCert.Cert); err != nil {
+				return nil, fmt.Errorf("<master/kubeconfig> failure while decoding cert pem: %v", err)
+			}
 		}
 		server := fmt.Sprintf("https://%s:%d", cfg.AdvertiseAddresses[0], cfg.BindPort)
 		conf := kubeadmutil.CreateWithCerts(

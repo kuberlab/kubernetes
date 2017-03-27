@@ -19,6 +19,7 @@ package master
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"path"
@@ -189,8 +190,18 @@ func CreatePKIAssets(cfg *kubeadmapi.MasterConfiguration) (*rsa.PrivateKey, *x50
 	var caCert, apiCert *x509.Certificate
 
 	if cfg.Security.CAKeyPem != "" && cfg.Security.CACertPem != "" {
-		fmt.Println("<master/pki> Using existing CA keys")
-		if caKey, caCert, err = parseKeyCertPEM([]byte(cfg.Security.CAKeyPem), []byte(cfg.Security.CACertPem)); err != nil {
+		fmt.Println("<master/pki> Using existing CA key and cert")
+
+		caKeyPem, err := base64.StdEncoding.DecodeString(cfg.Security.CAKeyPem)
+		if err != nil {
+			return nil, nil, err
+		}
+		caCertPem, err := base64.StdEncoding.DecodeString(cfg.Security.CACertPem)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if caKey, caCert, err = parseKeyCertPEM(caKeyPem, caCertPem); err != nil {
 			return nil, nil, err
 		}
 	} else {
@@ -208,8 +219,18 @@ func CreatePKIAssets(cfg *kubeadmapi.MasterConfiguration) (*rsa.PrivateKey, *x50
 	fmt.Printf("Public: %s\nPrivate: %s\nCert: %s\n", pub, prv, cert)
 
 	if cfg.Security.APIServerKeyPem != "" && cfg.Security.APIServerCertPem != "" {
-		fmt.Println("<master/pki> Using existing API server keys")
-		if apiKey, apiCert, err = parseKeyCertPEM([]byte(cfg.Security.APIServerKeyPem), []byte(cfg.Security.APIServerCertPem)); err != nil {
+		fmt.Println("<master/pki> Using existing API server key and cert")
+
+		apiKeyPem, err := base64.StdEncoding.DecodeString(cfg.Security.APIServerKeyPem)
+		if err != nil {
+			return nil, nil, err
+		}
+		apiCertPem, err := base64.StdEncoding.DecodeString(cfg.Security.APIServerCertPem)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if apiKey, apiCert, err = parseKeyCertPEM(apiKeyPem, apiCertPem); err != nil {
 			return nil, nil, err
 		}
 	} else {
@@ -228,7 +249,13 @@ func CreatePKIAssets(cfg *kubeadmapi.MasterConfiguration) (*rsa.PrivateKey, *x50
 
 	if cfg.Security.SAKeyPem != "" {
 		fmt.Println("<master/pki> Using existing SA server keys")
-		if saKey, _, err = parseKeyCertPEM([]byte(cfg.Security.SAKeyPem), nil); err != nil {
+
+		sakeyPem, err := base64.StdEncoding.DecodeString(cfg.Security.SAKeyPem)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if saKey, _, err = parseKeyCertPEM(sakeyPem, nil); err != nil {
 			return nil, nil, err
 		}
 	} else {
