@@ -125,11 +125,15 @@ func CreateDiscoveryDeploymentAndSecret(cfg *kubeadmapi.MasterConfiguration, cli
 		// Skip in case of it is already exists.
 		if !strings.Contains(err.Error(), "already exists") {
 			return fmt.Errorf("<master/discovery> failed to create %q deployment [%v]", kubeDiscoveryName, err)
+		} else {
+			fmt.Printf("<master/discovery> [%v]: Skipping\n", err)
 		}
 	}
 	if _, err := client.Secrets(api.NamespaceSystem).Create(kd.Secret); err != nil {
 		if !strings.Contains(err.Error(), "already exists") {
 			return fmt.Errorf("<master/discovery> failed to create %q secret [%v]", kubeDiscoverySecretName, err)
+		} else {
+			fmt.Printf("<master/discovery> [%v]: Skipping\n", err)
 		}
 	}
 

@@ -19,6 +19,7 @@ package master
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"runtime"
 	"time"
 
@@ -31,7 +32,6 @@ import (
 	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 	clientcmdapi "k8s.io/kubernetes/pkg/client/unversioned/clientcmd/api"
 	"k8s.io/kubernetes/pkg/util/wait"
-	"strings"
 )
 
 const apiCallRetryInterval = 500 * time.Millisecond
@@ -241,10 +241,18 @@ func NativeArchitectureNodeAffinity() api.NodeSelectorRequirement {
 
 func createDummyDeployment(client *clientset.Clientset) {
 	fmt.Println("<master/apiclient> attempting a test deployment")
-	dummyDeployment := NewDeployment("dummy", 1, api.PodSpec{
+
+	hostname, err := os.Hostname()
+
+	if err != nil {
+		fmt.Println("<master/apiclient> error:", err.Error())
+		return
+	}
+
+	dummyDeployment := NewDeployment(hostname, 1, api.PodSpec{
 		SecurityContext: &api.PodSecurityContext{HostNetwork: true},
 		Containers: []api.Container{{
-			Name:  "dummy",
+			Name:  hostname,
 			Image: images.GetAddonImage("pause"),
 		}},
 	})
@@ -252,20 +260,16 @@ func createDummyDeployment(client *clientset.Clientset) {
 	wait.PollInfinite(apiCallRetryInterval, func() (bool, error) {
 		// TODO: we should check the error, as some cases may be fatal
 		if _, err := client.Extensions().Deployments(api.NamespaceSystem).Create(dummyDeployment); err != nil {
-			// Skip in case of it is already exists.
-			if strings.Contains(err.Error(), "already exists") {
-				return true, nil
-			}
-			fmt.Printf("<master/apiclient> failed to create test deployment [%v] (will retry)", err)
+			fmt.Printf("<master/apiclient> failed to create test deployment [%v] (will retry)\n", err)
 			return false, nil
 		}
 		return true, nil
 	})
 
 	wait.PollInfinite(apiCallRetryInterval, func() (bool, error) {
-		d, err := client.Extensions().Deployments(api.NamespaceSystem).Get("dummy")
+		d, err := client.Extensions().Deployments(api.NamespaceSystem).Get(hostname)
 		if err != nil {
-			fmt.Printf("<master/apiclient> failed to get test deployment [%v] (will retry)", err)
+			fmt.Printf("<master/apiclient> failed to get test deployment [%v] (will retry)\n", err)
 			return false, nil
 		}
 		if d.Status.AvailableReplicas < 1 {
@@ -276,7 +280,7 @@ func createDummyDeployment(client *clientset.Clientset) {
 
 	fmt.Println("<master/apiclient> test deployment succeeded")
 
-	if err := client.Extensions().Deployments(api.NamespaceSystem).Delete("dummy", &api.DeleteOptions{}); err != nil {
-		fmt.Printf("<master/apiclient> failed to delete test deployment [%v] (will ignore)", err)
+	if err := client.Extensions().Deployments(api.NamespaceSystem).Delete(hostname, &api.DeleteOptions{}); err != nil {
+		fmt.Printf("<master/apiclient> failed to delete test deployment [%v] (will ignore)\n", err)
 	}
 }
