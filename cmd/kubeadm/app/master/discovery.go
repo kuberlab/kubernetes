@@ -29,6 +29,7 @@ import (
 	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	certutil "k8s.io/kubernetes/pkg/util/cert"
 	"k8s.io/kubernetes/pkg/util/wait"
+	"strings"
 )
 
 type kubeDiscovery struct {
@@ -121,10 +122,15 @@ func CreateDiscoveryDeploymentAndSecret(cfg *kubeadmapi.MasterConfiguration, cli
 	kd := newKubeDiscovery(cfg, caCert)
 
 	if _, err := client.Extensions().Deployments(api.NamespaceSystem).Create(kd.Deployment); err != nil {
-		return fmt.Errorf("<master/discovery> failed to create %q deployment [%v]", kubeDiscoveryName, err)
+		// Skip in case of it is already exists.
+		if !strings.Contains(err.Error(), "already exists") {
+			return fmt.Errorf("<master/discovery> failed to create %q deployment [%v]", kubeDiscoveryName, err)
+		}
 	}
 	if _, err := client.Secrets(api.NamespaceSystem).Create(kd.Secret); err != nil {
-		return fmt.Errorf("<master/discovery> failed to create %q secret [%v]", kubeDiscoverySecretName, err)
+		if !strings.Contains(err.Error(), "already exists") {
+			return fmt.Errorf("<master/discovery> failed to create %q secret [%v]", kubeDiscoverySecretName, err)
+		}
 	}
 
 	fmt.Println("<master/discovery> created essential addon: kube-discovery, waiting for it to become ready")
