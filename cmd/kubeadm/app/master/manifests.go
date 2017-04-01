@@ -272,7 +272,7 @@ func getAPIServerCommand(cfg *kubeadmapi.MasterConfiguration) (command []string)
 		"--tls-private-key-file="+pkiDir+"/apiserver-key.pem",
 		"--token-auth-file="+pkiDir+"/tokens.csv",
 		"--storage-backend=etcd2",
-		"--etcd-quorum-read=false",
+		"--etcd-quorum-read=true",
 		"--target-ram-mb=60",
 		"--authorization-mode=ABAC",
 		fmt.Sprintf("--secure-port=%d", cfg.API.BindPort),

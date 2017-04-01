@@ -32,6 +32,7 @@ import (
 	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 	clientcmdapi "k8s.io/kubernetes/pkg/client/unversioned/clientcmd/api"
 	"k8s.io/kubernetes/pkg/util/wait"
+	"github.com/pkg/errors"
 )
 
 const apiCallRetryInterval = 500 * time.Millisecond
@@ -154,6 +155,14 @@ func NewDeployment(deploymentName string, replicas int32, podSpec api.PodSpec) *
 // It's safe to do this for alpha, as we don't have HA and there is no way we can get
 // more then one node here (TODO(phase1+) use os.Hostname)
 func findMyself(client *clientset.Clientset) (*api.Node, error) {
+	host := os.Getenv("NODE_NAME")
+	if len(host)<1{
+		if hostname,err := os.Hostname();err!=nil{
+			return nil, fmt.Errorf("failed get hostame [%v]", err)
+		} else{
+			host = hostname
+		}
+	}
 	nodeList, err := client.Nodes().List(api.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("unable to list nodes [%v]", err)
@@ -161,8 +170,12 @@ func findMyself(client *clientset.Clientset) (*api.Node, error) {
 	if len(nodeList.Items) < 1 {
 		return nil, fmt.Errorf("no nodes found")
 	}
-	node := &nodeList.Items[0]
-	return node, nil
+	for _,n := range nodeList.Items{
+		if n.Name==host{
+			return &n,err
+		}
+	}
+	return nil, errors.New("unable to loacte myself in kubernetes nodes")
 }
 
 func attemptToUpdateMasterRoleLabelsAndTaints(client *clientset.Clientset, schedulable bool) error {
