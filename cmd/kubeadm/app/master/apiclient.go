@@ -137,6 +137,7 @@ func NewService(serviceName string, spec api.ServiceSpec) *api.Service {
 	}
 }
 
+
 func NewDeployment(deploymentName string, replicas int32, podSpec api.PodSpec) *extensions.Deployment {
 	l := standardLabels(deploymentName)
 	return &extensions.Deployment{

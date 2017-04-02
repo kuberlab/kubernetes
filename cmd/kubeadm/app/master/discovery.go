@@ -33,7 +33,7 @@ import (
 )
 
 type kubeDiscovery struct {
-	Deployment *extensions.Deployment
+	DaemonSet *extensions.DaemonSet
 	Secret     *api.Secret
 }
 
@@ -104,7 +104,7 @@ func newKubeDiscoveryPodSpec(cfg *kubeadmapi.MasterConfiguration) api.PodSpec {
 
 func newKubeDiscovery(cfg *kubeadmapi.MasterConfiguration, caCert *x509.Certificate) kubeDiscovery {
 	kd := kubeDiscovery{
-		Deployment: NewDeployment(kubeDiscoveryName, 1, newKubeDiscoveryPodSpec(cfg)),
+		DaemonSet: NewDaemonSet(kubeDiscoveryName, newKubeDiscoveryPodSpec(cfg)),
 		Secret: &api.Secret{
 			ObjectMeta: api.ObjectMeta{Name: kubeDiscoverySecretName},
 			Type:       api.SecretTypeOpaque,
@@ -112,8 +112,8 @@ func newKubeDiscovery(cfg *kubeadmapi.MasterConfiguration, caCert *x509.Certific
 		},
 	}
 
-	SetMasterTaintTolerations(&kd.Deployment.Spec.Template.ObjectMeta)
-	SetNodeAffinity(&kd.Deployment.Spec.Template.ObjectMeta, MasterNodeAffinity(), NativeArchitectureNodeAffinity())
+	SetMasterTaintTolerations(&kd.DaemonSet.Spec.Template.ObjectMeta)
+	SetNodeAffinity(&kd.DaemonSet.Spec.Template.ObjectMeta, MasterNodeAffinity(), NativeArchitectureNodeAffinity())
 
 	return kd
 }
@@ -121,7 +121,7 @@ func newKubeDiscovery(cfg *kubeadmapi.MasterConfiguration, caCert *x509.Certific
 func CreateDiscoveryDeploymentAndSecret(cfg *kubeadmapi.MasterConfiguration, client *clientset.Clientset, caCert *x509.Certificate) error {
 	kd := newKubeDiscovery(cfg, caCert)
 
-	if _, err := client.Extensions().Deployments(api.NamespaceSystem).Create(kd.Deployment); err != nil {
+	if _, err := client.Extensions().DaemonSets(api.NamespaceSystem).Create(kd.DaemonSet); err != nil {
 		// Skip in case of it is already exists.
 		if !strings.Contains(err.Error(), "already exists") {
 			return fmt.Errorf("<master/discovery> failed to create %q deployment [%v]", kubeDiscoveryName, err)
@@ -141,11 +141,8 @@ func CreateDiscoveryDeploymentAndSecret(cfg *kubeadmapi.MasterConfiguration, cli
 
 	start := time.Now()
 	wait.PollInfinite(apiCallRetryInterval, func() (bool, error) {
-		d, err := client.Extensions().Deployments(api.NamespaceSystem).Get(kubeDiscoveryName)
+		_, err := client.Extensions().DaemonSets(api.NamespaceSystem).Get(kubeDiscoveryName)
 		if err != nil {
-			return false, nil
-		}
-		if d.Status.AvailableReplicas < 1 {
 			return false, nil
 		}
 		return true, nil
