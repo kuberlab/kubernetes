@@ -43,7 +43,7 @@ func CreateCertsAndConfigForClients(clusterName string, cfg kubeadmapi.API, clie
 		var keyPem []byte
 		var certPem []byte
 
-		if !exist {
+		if !exist || (len(keyCert.Key) < 2 || len(keyCert.Cert) < 2) {
 			key, err := certutil.NewPrivateKey()
 			if err != nil {
 				return nil, fmt.Errorf("unable to create private key [%v]", err)
@@ -54,7 +54,7 @@ func CreateCertsAndConfigForClients(clusterName string, cfg kubeadmapi.API, clie
 			}
 			keyPem = certutil.EncodePrivateKeyPEM(key)
 			certPem = certutil.EncodeCertPEM(cert)
-		} else if len(keyCert.Key) > 1 && len(keyCert.Cert) > 1 {
+		} else {
 			fmt.Printf("<master/kubeconfig> Using existing client keys for %v", client)
 			if keyPem, err = base64.StdEncoding.DecodeString(keyCert.Key); err != nil {
 				return nil, fmt.Errorf("<master/kubeconfig> failure while decoding key pem: %v", err)
