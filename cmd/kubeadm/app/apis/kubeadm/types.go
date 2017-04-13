@@ -61,7 +61,9 @@ type ClientKeyCert struct {
 type API struct {
 	AdvertiseAddresses []string
 	ExternalDNSNames   []string
+	MasterDNSName      string
 	BindPort           int32
+	MasterCount        int
 }
 
 type Discovery struct {

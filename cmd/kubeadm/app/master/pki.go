@@ -183,6 +183,7 @@ func CreatePKIAssets(cfg *kubeadmapi.MasterConfiguration) (*rsa.PrivateKey, *x50
 		}
 	}
 	altNames.DNSNames = append(altNames.DNSNames, cfg.API.ExternalDNSNames...)
+	altNames.DNSNames = append(altNames.DNSNames, cfg.API.MasterDNSName)
 
 	pkiPath := path.Join(kubeadmapi.GlobalEnvParams.HostPKIPath)
 

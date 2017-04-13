@@ -232,7 +232,7 @@ func (i *Init) Run(out io.Writer) error {
 		return err
 	}
 
-	kubeconfigs, err := kubemaster.CreateCertsAndConfigForClients(i.cfg.ClusterName, i.cfg.API, []string{"kubelet", "admin"}, caKey, caCert, i.cfg.Security)
+	kubeconfigs, err := kubemaster.CreateCertsAndConfigForClients(i.cfg.ClusterName, i.cfg.API, []string{"kubelet", "admin","client"}, caKey, caCert, i.cfg.Security)
 	if err != nil {
 		return err
 	}
@@ -246,8 +246,10 @@ func (i *Init) Run(out io.Writer) error {
 	// importing existing files, may be we could even make our command idempotant,
 	// or at least allow for external PKI and stuff)
 	for name, kubeconfig := range kubeconfigs {
-		if err := kubeadmutil.WriteKubeconfigIfNotExists(name, kubeconfig); err != nil {
-			return err
+		if name!="client" {
+			if err := kubeadmutil.WriteKubeconfigIfNotExists(name, kubeconfig); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -261,12 +263,13 @@ func (i *Init) Run(out io.Writer) error {
 		}
 	}
 
-	adminConf := kubeconfigs["admin"]
-	adminConf.AuthInfos["kubernetes-basic-auth"] = &cmdapi.AuthInfo{
+	clientConf := kubeconfigs["client"]
+	clientConf.AuthInfos["kubernetes-basic-auth"] = &cmdapi.AuthInfo{
 		Username: "admin",
 		Password: password,
 	}
-	if err := kubeadmutil.WriteKubeconfigIfNotExists("client", adminConf); err != nil {
+
+	if err := kubeadmutil.WriteKubeconfigIfNotExists("client", clientConf); err != nil {
 		return err
 	}
 	if err := writeBasicAuth(password); err != nil {

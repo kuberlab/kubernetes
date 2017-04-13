@@ -64,6 +64,9 @@ func CreateCertsAndConfigForClients(clusterName string, cfg kubeadmapi.API, clie
 			}
 		}
 		server := fmt.Sprintf("https://%s:%d", cfg.AdvertiseAddresses[0], cfg.BindPort)
+		if len(cfg.MasterDNSName)>0{
+			server = fmt.Sprintf("https://%s:%d", cfg.MasterDNSName, cfg.BindPort)
+		}
 		conf := kubeadmutil.CreateWithCerts(
 			server, clusterName, client, certutil.EncodeCertPEM(caCert), keyPem, certPem,
 		)

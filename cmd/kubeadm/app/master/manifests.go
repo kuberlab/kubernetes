@@ -260,6 +260,10 @@ func getComponentBaseCommand(component string) (command []string) {
 }
 
 func getAPIServerCommand(cfg *kubeadmapi.MasterConfiguration) (command []string) {
+	masterCount := 1
+	if (cfg.API.MasterCount)>0{
+		masterCount = cfg.API.MasterCount
+	}
 	command = append(getComponentBaseCommand(apiServer),
 		"--address=127.0.0.1",
 		"--admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,ResourceQuota",
@@ -277,6 +281,7 @@ func getAPIServerCommand(cfg *kubeadmapi.MasterConfiguration) (command []string)
 		"--authorization-mode=ABAC",
 		fmt.Sprintf("--secure-port=%d", cfg.API.BindPort),
 		"--allow-privileged",
+		fmt.Sprintf("--apiserver-count=%d", masterCount),
 	)
 
 	// Use first address we are given
