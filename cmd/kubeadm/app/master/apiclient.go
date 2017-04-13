@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/pkg/errors"
 	"k8s.io/kubernetes/cmd/kubeadm/app/images"
 	"k8s.io/kubernetes/pkg/api"
 	apierrs "k8s.io/kubernetes/pkg/api/errors"
@@ -32,7 +33,6 @@ import (
 	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 	clientcmdapi "k8s.io/kubernetes/pkg/client/unversioned/clientcmd/api"
 	"k8s.io/kubernetes/pkg/util/wait"
-	"github.com/pkg/errors"
 )
 
 const apiCallRetryInterval = 500 * time.Millisecond
@@ -137,7 +137,6 @@ func NewService(serviceName string, spec api.ServiceSpec) *api.Service {
 	}
 }
 
-
 func NewDeployment(deploymentName string, replicas int32, podSpec api.PodSpec) *extensions.Deployment {
 	l := standardLabels(deploymentName)
 	return &extensions.Deployment{
@@ -157,10 +156,10 @@ func NewDeployment(deploymentName string, replicas int32, podSpec api.PodSpec) *
 // more then one node here (TODO(phase1+) use os.Hostname)
 func findMyself(client *clientset.Clientset) (*api.Node, error) {
 	host := os.Getenv("NODE_NAME")
-	if len(host)<1{
-		if hostname,err := os.Hostname();err!=nil{
+	if len(host) < 1 {
+		if hostname, err := os.Hostname(); err != nil {
 			return nil, fmt.Errorf("failed get hostame [%v]", err)
-		} else{
+		} else {
 			host = hostname
 		}
 	}
@@ -171,9 +170,9 @@ func findMyself(client *clientset.Clientset) (*api.Node, error) {
 	if len(nodeList.Items) < 1 {
 		return nil, fmt.Errorf("no nodes found")
 	}
-	for _,n := range nodeList.Items{
-		if n.Name==host{
-			return &n,err
+	for _, n := range nodeList.Items {
+		if n.Name == host {
+			return &n, err
 		}
 	}
 	return nil, errors.New("unable to loacte myself in kubernetes nodes")

@@ -232,7 +232,7 @@ func (i *Init) Run(out io.Writer) error {
 		return err
 	}
 
-	kubeconfigs, err := kubemaster.CreateCertsAndConfigForClients(i.cfg.ClusterName, i.cfg.API, []string{"kubelet", "admin","client"}, caKey, caCert, i.cfg.Security)
+	kubeconfigs, err := kubemaster.CreateCertsAndConfigForClients(i.cfg.ClusterName, i.cfg.API, []string{"kubelet", "admin", "client"}, caKey, caCert, i.cfg.Security)
 	if err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func (i *Init) Run(out io.Writer) error {
 	// importing existing files, may be we could even make our command idempotant,
 	// or at least allow for external PKI and stuff)
 	for name, kubeconfig := range kubeconfigs {
-		if name!="client" {
+		if name != "client" {
 			if err := kubeadmutil.WriteKubeconfigIfNotExists(name, kubeconfig); err != nil {
 				return err
 			}

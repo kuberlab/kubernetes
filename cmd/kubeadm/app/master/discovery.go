@@ -34,7 +34,7 @@ import (
 
 type kubeDiscovery struct {
 	DaemonSet *extensions.DaemonSet
-	Secret     *api.Secret
+	Secret    *api.Secret
 }
 
 const (
@@ -55,7 +55,7 @@ func encodeKubeDiscoverySecretData(cfg *kubeadmapi.MasterConfiguration, caCert *
 	for _, addr := range cfg.API.ExternalDNSNames {
 		endpointList = append(endpointList, fmt.Sprintf("https://%s:%d", addr, cfg.API.BindPort))
 	}
-	if len(cfg.API.MasterDNSName)>0{
+	if len(cfg.API.MasterDNSName) > 0 {
 		endpointList = append(endpointList, fmt.Sprintf("https://%s:%d", cfg.API.MasterDNSName, cfg.API.BindPort))
 	}
 

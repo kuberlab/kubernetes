@@ -261,7 +261,7 @@ func getComponentBaseCommand(component string) (command []string) {
 
 func getAPIServerCommand(cfg *kubeadmapi.MasterConfiguration) (command []string) {
 	masterCount := 1
-	if (cfg.API.MasterCount)>0{
+	if (cfg.API.MasterCount) > 0 {
 		masterCount = cfg.API.MasterCount
 	}
 	command = append(getComponentBaseCommand(apiServer),
