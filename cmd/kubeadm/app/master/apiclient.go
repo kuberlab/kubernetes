@@ -280,12 +280,9 @@ func createDummyDeployment(client *clientset.Clientset) {
 	})
 
 	wait.PollInfinite(apiCallRetryInterval, func() (bool, error) {
-		d, err := client.Extensions().Deployments(api.NamespaceSystem).Get(hostname)
+		_, err := client.Extensions().Deployments(api.NamespaceSystem).Get(hostname)
 		if err != nil {
 			fmt.Printf("<master/apiclient> failed to get test deployment [%v] (will retry)\n", err)
-			return false, nil
-		}
-		if d.Status.AvailableReplicas < 1 {
 			return false, nil
 		}
 		return true, nil
