@@ -179,29 +179,30 @@ func findMyself(client *clientset.Clientset) (*api.Node, error) {
 }
 
 func attemptToUpdateMasterRoleLabelsAndTaints(client *clientset.Clientset, schedulable bool) error {
-	n, err := findMyself(client)
-	if err != nil {
-		return err
-	}
-
-	n.ObjectMeta.Labels[unversionedapi.NodeLabelKubeadmAlphaRole] = unversionedapi.NodeLabelRoleMaster
-
-	if !schedulable {
-		taintsAnnotation, _ := json.Marshal([]api.Taint{{Key: "dedicated", Value: "master", Effect: "NoSchedule"}})
-		n.ObjectMeta.Annotations[api.TaintsAnnotationKey] = string(taintsAnnotation)
-	}
-
-	if _, err := client.Nodes().Update(n); err != nil {
-		if apierrs.IsConflict(err) {
-			fmt.Println("<master/apiclient> temporarily unable to update master node metadata due to conflict (will retry)")
-			time.Sleep(apiCallRetryInterval)
-			attemptToUpdateMasterRoleLabelsAndTaints(client, schedulable)
-		} else {
-			return err
+	return wait.PollInfinite(apiCallRetryInterval, func() (bool, error) {
+		n, err := findMyself(client)
+		if err != nil {
+			fmt.Println("<master/apiclient> unable to loacte myself in kubernetes nodes (will retry)")
+			return false, nil
 		}
-	}
+		n.ObjectMeta.Labels[unversionedapi.NodeLabelKubeadmAlphaRole] = unversionedapi.NodeLabelRoleMaster
 
-	return nil
+		if !schedulable {
+			taintsAnnotation, _ := json.Marshal([]api.Taint{{Key: "dedicated", Value: "master", Effect: "NoSchedule"}})
+			n.ObjectMeta.Annotations[api.TaintsAnnotationKey] = string(taintsAnnotation)
+		}
+
+		if _, err := client.Nodes().Update(n); err != nil {
+			if apierrs.IsConflict(err) {
+				fmt.Println("<master/apiclient> temporarily unable to update master node metadata due to conflict (will retry)")
+				time.Sleep(apiCallRetryInterval)
+				return false, nil
+			} else {
+				return true, err
+			}
+		}
+		return true, nil
+	})
 }
 
 func UpdateMasterRoleLabelsAndTaints(client *clientset.Clientset, schedulable bool) error {
