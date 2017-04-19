@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/net"
 	api "k8s.io/client-go/pkg/api/v1"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
@@ -35,6 +36,7 @@ import (
 	bootstrapapi "k8s.io/kubernetes/pkg/bootstrap/api"
 	authzmodes "k8s.io/kubernetes/pkg/kubeapiserver/authorizer/modes"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
+	"k8s.io/kubernetes/pkg/util/node"
 	"k8s.io/kubernetes/pkg/util/version"
 )
 
@@ -111,14 +113,42 @@ func WriteStaticPodManifests(cfg *kubeadmapi.MasterConfiguration) error {
 
 	// Add etcd static pod spec only if external etcd is not configured
 	if len(cfg.Etcd.Endpoints) == 0 {
-		etcdPod := componentPod(api.Container{
-			Name: etcd,
-			Command: []string{
+		var cmd []string
+		if len(cfg.Etcd.Discovery) > 1 {
+			//Use etcd discovery for multi master
+			name := node.GetHostname(cfg.HostnameOverride)
+			ip, err := net.ChooseHostInterface()
+			if err != nil {
+				return fmt.Errorf("failed to get host interface address for etcd [%v]", err)
+			}
+			cmd = []string{
+				"etcd",
+				"--name",
+				name,
+				"--initial-advertise-peer-urls",
+				fmt.Sprintf("http://%v:2380", ip.String()),
+				"--listen-peer-urls",
+				fmt.Sprintf("http://%v:2380", ip.String()),
+				"--listen-client-urls",
+				fmt.Sprintf("http://%v:2379,http://127.0.0.1:2379", ip.String()),
+				"--advertise-client-urls",
+				fmt.Sprintf("http://%v:2379", ip.String()),
+				"--discovery",
+				cfg.Etcd.Discovery,
+				"--data-dir=/var/etcd/data",
+			}
+		} else {
+			//Standalone etcd
+			cmd = []string{
 				"etcd",
 				"--listen-client-urls=http://127.0.0.1:2379",
 				"--advertise-client-urls=http://127.0.0.1:2379",
 				"--data-dir=/var/lib/etcd",
-			},
+			}
+		}
+		etcdPod := componentPod(api.Container{
+			Name:          etcd,
+			Command:       cmd,
 			VolumeMounts:  []api.VolumeMount{certsVolumeMount(), etcdVolumeMount(), k8sVolumeMount()},
 			Image:         images.GetCoreImage(images.KubeEtcdImage, cfg, kubeadmapi.GlobalEnvParams.EtcdImage),
 			LivenessProbe: componentProbe(2379, "/health", api.URISchemeHTTP),
@@ -333,7 +363,9 @@ func getAPIServerCommand(cfg *kubeadmapi.MasterConfiguration, selfHosted bool, k
 		"requestheader-extra-headers-prefix": "X-Remote-Extra-",
 		"requestheader-client-ca-file":       path.Join(cfg.CertificatesDir, kubeadmconstants.FrontProxyCACertName),
 		"requestheader-allowed-names":        "front-proxy-client",
-		"apiserver-count":                    fmt.Sprintf("%d", cfg.Count),
+	}
+	if cfg.Count > 0 {
+		defaultArguments["apiserver-count"] = fmt.Sprintf("%d", cfg.Count)
 	}
 	if k8sVersion.AtLeast(v170) {
 		// add options which allow the kube-apiserver to act as a front-proxy to aggregated API servers
