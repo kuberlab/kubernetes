@@ -31,6 +31,7 @@ import (
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	tokenutil "k8s.io/kubernetes/cmd/kubeadm/app/util/token"
 	"net/http"
+
 	"regexp"
 )
 
@@ -79,7 +80,7 @@ func NewConfigurator(out io.Writer) *cobra.Command {
 	)
 	cmd.PersistentFlags().IntVar(
 		&cfg.Count, "master-count", 1,
-		"Spevify Master count for multi master cinfiguration",
+		"Specify Master count for multi master configuration",
 	)
 	cmd.PersistentFlags().Int32Var(
 		&cfg.API.BindPort, "apiserver-bind-port", cfg.API.BindPort,
