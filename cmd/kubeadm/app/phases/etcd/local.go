@@ -20,11 +20,13 @@ import (
 	"fmt"
 
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/net"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	"k8s.io/kubernetes/cmd/kubeadm/app/images"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	staticpodutil "k8s.io/kubernetes/cmd/kubeadm/app/util/staticpod"
+	"k8s.io/kubernetes/pkg/util/node"
 )
 
 const (
@@ -35,7 +37,10 @@ const (
 func CreateLocalEtcdStaticPodManifestFile(manifestDir string, cfg *kubeadmapi.MasterConfiguration) error {
 
 	// gets etcd StaticPodSpec, actualized for the current MasterConfiguration
-	spec := GetEtcdPodSpec(cfg)
+	spec, err := GetEtcdPodSpec(cfg)
+	if err != nil {
+		return err
+	}
 
 	// writes etcd StaticPod to disk
 	if err := staticpodutil.WriteStaticPodToDisk(kubeadmconstants.Etcd, manifestDir, spec); err != nil {
@@ -48,27 +53,52 @@ func CreateLocalEtcdStaticPodManifestFile(manifestDir string, cfg *kubeadmapi.Ma
 
 // GetEtcdPodSpec returns the etcd static Pod actualized to the context of the current MasterConfiguration
 // NB. GetEtcdPodSpec methods holds the information about how kubeadm creates etcd static pod mainfests.
-func GetEtcdPodSpec(cfg *kubeadmapi.MasterConfiguration) v1.Pod {
+func GetEtcdPodSpec(cfg *kubeadmapi.MasterConfiguration) (v1.Pod, error) {
 	pathType := v1.HostPathDirectoryOrCreate
+
+	etcdCommand, err := getEtcdCommand(cfg)
+	if err != nil {
+		return v1.Pod{}, err
+	}
+
 	return staticpodutil.ComponentPod(v1.Container{
 		Name:    kubeadmconstants.Etcd,
-		Command: getEtcdCommand(cfg),
+		Command: etcdCommand,
 		Image:   images.GetCoreImage(kubeadmconstants.Etcd, cfg.ImageRepository, "", cfg.Etcd.Image),
 		// Mount the etcd datadir path read-write so etcd can store data in a more persistent manner
 		VolumeMounts:  []v1.VolumeMount{staticpodutil.NewVolumeMount(etcdVolumeName, cfg.Etcd.DataDir, false)},
 		LivenessProbe: staticpodutil.ComponentProbe(2379, "/health", v1.URISchemeHTTP),
-	}, []v1.Volume{staticpodutil.NewVolume(etcdVolumeName, cfg.Etcd.DataDir, &pathType)})
+	}, []v1.Volume{staticpodutil.NewVolume(etcdVolumeName, cfg.Etcd.DataDir, &pathType)}), nil
 }
 
 // getEtcdCommand builds the right etcd command from the given config object
-func getEtcdCommand(cfg *kubeadmapi.MasterConfiguration) []string {
-	defaultArguments := map[string]string{
-		"listen-client-urls":    "http://127.0.0.1:2379",
-		"advertise-client-urls": "http://127.0.0.1:2379",
-		"data-dir":              cfg.Etcd.DataDir,
+func getEtcdCommand(cfg *kubeadmapi.MasterConfiguration) ([]string, error) {
+	var defaultArguments map[string]string
+	if len(cfg.Etcd.Discovery) > 1 {
+		//Use etcd discovery for multi master
+		name := node.GetHostname(cfg.HostnameOverride)
+		ip, err := net.ChooseHostInterface()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get host interface address for etcd [%v]", err)
+		}
+		defaultArguments = map[string]string{
+			"name": name,
+			"initial-advertise-peer-urls": fmt.Sprintf("http://%v:2380", ip.String()),
+			"listen-peer-urls":            fmt.Sprintf("http://%v:2380", ip.String()),
+			"listen-client-urls":          fmt.Sprintf("http://%v:2379,http://127.0.0.1:2379", ip.String()),
+			"advertise-client-urls":       fmt.Sprintf("http://%v:2379", ip.String()),
+			"discovery":                   cfg.Etcd.Discovery,
+			"data-dir":                    cfg.Etcd.DataDir,
+		}
+	} else {
+		defaultArguments = map[string]string{
+			"listen-client-urls":    "http://127.0.0.1:2379",
+			"advertise-client-urls": "http://127.0.0.1:2379",
+			"data-dir":              cfg.Etcd.DataDir,
+		}
 	}
 
 	command := []string{"etcd"}
 	command = append(command, kubeadmutil.BuildArgumentListFromMap(defaultArguments, cfg.Etcd.ExtraArgs)...)
-	return command
+	return command, nil
 }
