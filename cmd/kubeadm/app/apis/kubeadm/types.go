@@ -142,16 +142,18 @@ func (cfg *MasterConfiguration) GetControlPlaneImageRepository() string {
 }
 
 type MasterCertificates struct {
-	CAKeyPem         string
-	CACertPem        string
-	APIServerKeyPem  string
-	APIServerCertPem string
-	SAKeyPem         string
-	FrontProxyKeyPem  string
-	FrontProxyCertPem string
+	CAKeyPem                string
+	CACertPem               string
+	APIServerKeyPem         string
+	APIServerCertPem        string
+	SAKeyPem                string
+	FrontProxyKeyPem        string
+	FrontProxyCertPem       string
+	FrontProxyClientKeyPem  string
+	FrontProxyClientCertPem string
 
-	ClientConf       map[string]ClientKeyCert
-	Password         string
+	ClientConf map[string]ClientKeyCert
+	Password   string
 }
 type ClientKeyCert struct {
 	Key  string
