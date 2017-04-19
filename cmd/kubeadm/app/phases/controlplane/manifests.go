@@ -162,7 +162,10 @@ func getAPIServerCommand(cfg *kubeadmapi.MasterConfiguration, k8sVersion *versio
 		"requestheader-allowed-names":        "front-proxy-client",
 		"proxy-client-cert-file":             filepath.Join(cfg.CertificatesDir, kubeadmconstants.FrontProxyClientCertName),
 		"proxy-client-key-file":              filepath.Join(cfg.CertificatesDir, kubeadmconstants.FrontProxyClientKeyName),
-		"apiserver-count":                    fmt.Sprintf("%d", cfg.Count),
+	}
+
+	if cfg.Count > 0 {
+		defaultArguments["apiserver-count"] = fmt.Sprintf("%d", cfg.Count)
 	}
 
 	command := []string{"kube-apiserver"}

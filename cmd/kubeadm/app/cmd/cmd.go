@@ -77,6 +77,7 @@ func NewKubeadmCommand(_ io.Reader, out, err io.Writer) *cobra.Command {
 	cmds.AddCommand(NewCmdVersion(out))
 	cmds.AddCommand(NewCmdToken(out, err))
 	cmds.AddCommand(upgrade.NewCmdUpgrade(out))
+	cmds.AddCommand(NewConfigurator(out))
 
 	// Wrap not yet fully supported commands in an alpha subcommand
 	experimentalCmd := &cobra.Command{
