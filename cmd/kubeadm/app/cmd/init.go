@@ -59,6 +59,7 @@ import (
 	kubeconfigutil "k8s.io/kubernetes/cmd/kubeadm/app/util/kubeconfig"
 	"k8s.io/kubernetes/cmd/kubeadm/app/util/pubkeypin"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/util/node"
 	"k8s.io/kubernetes/pkg/util/version"
 )
 
@@ -149,6 +150,18 @@ func AddInitConfigFlags(flagSet *flag.FlagSet, cfg *kubeadmapiext.MasterConfigur
 	flagSet.StringVar(
 		&cfg.API.AdvertiseAddress, "apiserver-advertise-address", cfg.API.AdvertiseAddress,
 		"The IP address the API Server will advertise it's listening on. 0.0.0.0 means the default network interface's address.",
+	)
+	flagSet.StringVar(
+		&cfg.PublicAddress, "public-address", cfg.PublicAddress,
+		"The PublicAddress address e.g. LoadBalancer",
+	)
+	flagSet.StringVar(
+		&cfg.HostnameOverride, "hostname-override", cfg.HostnameOverride,
+		"Override node name.",
+	)
+	flagSet.IntVar(
+		&cfg.Count, "master-count", cfg.Count,
+		"Master count",
 	)
 	flagSet.Int32Var(
 		&cfg.API.BindPort, "apiserver-bind-port", cfg.API.BindPort,
@@ -287,6 +300,9 @@ func (i *Init) Run(out io.Writer) error {
 	// Get directories to write files to; can be faked if we're dry-running
 	realCertsDir := i.cfg.CertificatesDir
 	certsDirToWriteTo, kubeConfigDir, manifestDir, err := getDirectoriesToUse(i.dryRun, i.cfg.CertificatesDir)
+	// PHASE 2: Generate kubeconfig files for the admin and the kubelet
+
+	err = kubeconfigphase.CreateInitKubeConfigFiles(kubeConfigDir, i.cfg)
 	if err != nil {
 		return err
 	}
@@ -364,8 +380,8 @@ func (i *Init) Run(out io.Writer) error {
 	}
 
 	// PHASE 4: Mark the master with the right label/taint
-	if err := markmasterphase.MarkMaster(client, i.cfg.NodeName); err != nil {
-		return err
+	if err := markmasterphase.MarkMaster(client, node.GetHostname(i.cfg.HostnameOverride)); err != nil {
+		return fmt.Errorf("error marking master: %v", err)
 	}
 
 	// PHASE 5: Set up the node bootstrap tokens

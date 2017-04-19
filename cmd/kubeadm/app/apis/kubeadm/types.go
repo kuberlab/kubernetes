@@ -63,6 +63,8 @@ type MasterConfiguration struct {
 	PublicAddress string
 	//Masters Count
 	Count int
+
+	HostnameOverride string
 }
 
 
@@ -146,14 +148,13 @@ type MasterCertificates struct {
 	CACertPem               string
 	APIServerKeyPem         string
 	APIServerCertPem        string
+	APIClientServerKeyPem   string
+	APIClientServerCertPem  string
 	SAKeyPem                string
 	FrontProxyKeyPem        string
 	FrontProxyCertPem       string
 	FrontProxyClientKeyPem  string
 	FrontProxyClientCertPem string
-
-	ClientConf map[string]ClientKeyCert
-	Password   string
 }
 type ClientKeyCert struct {
 	Key  string

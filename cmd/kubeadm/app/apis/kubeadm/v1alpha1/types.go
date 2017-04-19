@@ -52,6 +52,14 @@ type MasterConfiguration struct {
 
 	// FeatureGates enabled by the user
 	FeatureGates map[string]bool `json:"featureGates,omitempty"`
+
+	MasterCertificates *MasterCertificates `json:"masterCertificates,omitempty"`
+	// Public Addr or DNS
+	PublicAddress string `json:"publicAddress"`
+	//Masters Count
+	Count int `json:"count"`
+
+	HostnameOverride string `json:"hostNameOverride"`
 }
 
 type API struct {
@@ -82,6 +90,9 @@ type Etcd struct {
 	ExtraArgs map[string]string `json:"extraArgs,omitempty"`
 	// Image specifies which container image to use for running etcd. If empty, automatically populated by kubeadm using the image repository and default etcd version
 	Image string `json:"image"`
+
+	//Discovery URL for etcd cluster
+	Discovery string `json:"discovery"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -111,4 +122,18 @@ type NodeConfiguration struct {
 	// without CA verification via DiscoveryTokenCACertHashes. This can weaken
 	// the security of kubeadm since other nodes can impersonate the master.
 	DiscoveryTokenUnsafeSkipCAVerification bool `json:"discoveryTokenUnsafeSkipCAVerification"`
+}
+
+type MasterCertificates struct {
+	CAKeyPem                string
+	CACertPem               string
+	APIServerKeyPem         string
+	APIServerCertPem        string
+	APIClientServerKeyPem   string
+	APIClientServerCertPem  string
+	SAKeyPem                string
+	FrontProxyKeyPem        string
+	FrontProxyCertPem       string
+	FrontProxyClientKeyPem  string
+	FrontProxyClientCertPem string
 }

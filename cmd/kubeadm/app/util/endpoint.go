@@ -37,6 +37,9 @@ func GetMasterEndpoint(cfg *kubeadmapi.MasterConfiguration) (string, error) {
 // GetMasterHostPort returns a properly formatted Master IP/port pair or error
 // if the IP address can not be parsed or port is outside the valid TCP range.
 func GetMasterHostPort(cfg *kubeadmapi.MasterConfiguration) (string, error) {
+	if cfg.PublicAddress != "" {
+		return fmt.Sprintf("https://%s:%d", cfg.PublicAddress, cfg.API.BindPort), nil
+	}
 	masterIP := net.ParseIP(cfg.API.AdvertiseAddress)
 	if masterIP == nil {
 		return "", fmt.Errorf("error parsing address %s", cfg.API.AdvertiseAddress)
