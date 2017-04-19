@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"encoding/base64"
 	"k8s.io/apimachinery/pkg/util/validation"
 	certutil "k8s.io/client-go/util/cert"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
@@ -35,6 +36,10 @@ import (
 // CreatePKIAssets will create and write to disk all PKI assets necessary to establish the control plane.
 // If the PKI assets already exists in the target folder, they are used only if evaluated equal; otherwise an error is returned.
 func CreatePKIAssets(cfg *kubeadmapi.MasterConfiguration) error {
+
+	if cfg.MasterCertificates != nil {
+
+	}
 
 	certActions := []func(cfg *kubeadmapi.MasterConfiguration) error{
 		CreateCACertAndKeyfiles,
@@ -472,6 +477,101 @@ func validateCACertAndKey(l certKeyLocation) error {
 	return nil
 }
 
+func saveConfiguredPKIAssets(cfg *kubeadmapi.MasterConfiguration) error {
+	fmt.Println("[certificates] Using the provided CA certificate and key.")
+	pkiDir := cfg.CertificatesDir
+	caKey, caCert, err := loadCertFromConf(cfg.MasterCertificates.CAKeyPem,cfg.MasterCertificates.CACertPem)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failure while load CA certificate and key [%v]", err)
+	}
+	if err = pkiutil.WriteCertAndKey(pkiDir, kubeadmconstants.CACertAndKeyBaseName, caCert, caKey); err != nil {
+		return fmt.Errorf("failure while saving CA certificate and key [%v]", err)
+	}
+	fmt.Println("[certificates] Save CA certificate and key.")
+
+
+	apiKey, apiCert, err := loadCertFromConf(cfg.MasterCertificates.APIServerKeyPem,cfg.MasterCertificates.APIServerCertPem)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failure while load API server certificate and key [%v]", err)
+	}
+	if err = pkiutil.WriteCertAndKey(pkiDir, kubeadmconstants.APIServerCertAndKeyBaseName, apiCert, apiKey); err != nil {
+		return fmt.Errorf("failure while saving API server certificate and key [%v]", err)
+	}
+	fmt.Println("[certificates] Save API server certificate and key.")
+
+	sakeyPem, err := base64.StdEncoding.DecodeString(cfg.MasterCertificates.SAKeyPem)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failure while load service account token key [%v]", err)
+	}
+	saTokenSigningKey, _, err := parseKeyCertPEM(sakeyPem, nil)
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("failure while parse service account token signing key [%v]", err)
+	}
+
+	if err = pkiutil.WriteKey(pkiDir, kubeadmconstants.ServiceAccountKeyBaseName, saTokenSigningKey); err != nil {
+		return fmt.Errorf("failure while saving service account token signing key [%v]", err)
+	}
+
+	if err = pkiutil.WritePublicKey(pkiDir, kubeadmconstants.ServiceAccountKeyBaseName, &saTokenSigningKey.PublicKey); err != nil {
+		return fmt.Errorf("failure while saving service account token signing public key [%v]", err)
+	}
+	fmt.Println("[certificates] Save service account token signing key and public key.")
+
+
+	frontKey, frontCert, err := loadCertFromConf(cfg.MasterCertificates.FrontProxyKeyPem,cfg.MasterCertificates.FrontProxyCertPem)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failure while load front-proxy CA certificate and key  [%v]", err)
+	}
+	if err = pkiutil.WriteCertAndKey(pkiDir, kubeadmconstants.FrontProxyCACertAndKeyBaseName, frontCert, frontKey); err != nil {
+		return fmt.Errorf("failure while saving front-proxy CA certificate and key [%v]", err)
+	}
+	fmt.Println("[certificates] Save front-proxy CA certificate and key.")
+
+	frontClientKey, frontClinetCert, err := loadCertFromConf(cfg.MasterCertificates.FrontProxyClientKeyPem,cfg.MasterCertificates.FrontProxyClientCertPem)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failure while load front-proxy CA certificate and key  [%v]", err)
+	}
+	if err = pkiutil.WriteCertAndKey(pkiDir, kubeadmconstants.FrontProxyClientCertAndKeyBaseName, frontClinetCert, frontClientKey); err != nil {
+		return fmt.Errorf("failure while saving front-proxy client certificate and key [%v]", err)
+	}
+	fmt.Println("[certificates] Generated front-proxy client certificate and key.")
+
+	// At this point we have a front proxy CA signing key.  We can use that create the front proxy client cert if
+	// it doesn't already exist.
+	// If at least one of them exists, we should try to load them
+	// In the case that only one exists, there will most likely be an error anyway
+	if pkiutil.CertOrKeyExist(pkiDir, kubeadmconstants.FrontProxyClientCertAndKeyBaseName) {
+		// Try to load apiserver-kubelet-client.crt and apiserver-kubelet-client.key from the PKI directory
+		apiCert, apiKey, err := pkiutil.TryLoadCertAndKeyFromDisk(pkiDir, kubeadmconstants.FrontProxyClientCertAndKeyBaseName)
+		if err != nil || apiCert == nil || apiKey == nil {
+			return fmt.Errorf("certificate and/or key existed but they could not be loaded properly")
+		}
+
+		fmt.Println("[certificates] Using the existing front-proxy client certificate and key.")
+	} else {
+		// The certificate and the key did NOT exist, let's generate them now
+		// TODO: Add a test case to verify that this cert has the x509.ExtKeyUsageClientAuth flag
+		config := certutil.Config{
+			CommonName: "front-proxy-client",
+			Usages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
+		apiClientCert, apiClientKey, err := pkiutil.NewCertAndKey(frontProxyCACert, frontProxyCAKey, config)
+		if err != nil {
+			return fmt.Errorf("failure while creating front-proxy client key and certificate [%v]", err)
+		}
+
+		if err = pkiutil.WriteCertAndKey(pkiDir, kubeadmconstants.FrontProxyClientCertAndKeyBaseName, apiClientCert, apiClientKey); err != nil {
+			return fmt.Errorf("failure while saving front-proxy client certificate and key [%v]", err)
+		}
+		fmt.Println("[certificates] Generated front-proxy client certificate and key.")
+	}
+
+	fmt.Printf("[certificates] Valid certificates and keys now exist in %q\n", pkiDir)
+
+	return nil
+}
+
 // validateSignedCert tries to load a x509 certificate and private key from pkiDir and validates
 // that the cert is signed by a given CA
 func validateSignedCert(l certKeyLocation) error {
@@ -549,4 +649,41 @@ func getAltNames(cfg *kubeadmapi.MasterConfiguration) (*certutil.AltNames, error
 	}
 
 	return altNames, nil
+}
+
+func parseKeyCertPEM(keyPem []byte, certPem []byte) (key *rsa.PrivateKey, cert *x509.Certificate, err error) {
+	var ok bool
+
+	if keyPem != nil {
+		KeyI, err := certutil.ParsePrivateKeyPEM(keyPem)
+		if err != nil {
+			return nil, nil, err
+		}
+		key, ok = KeyI.(*rsa.PrivateKey)
+
+		if !ok {
+			return nil, nil, err
+		}
+	}
+	if certPem != nil {
+		certA, err := certutil.ParseCertsPEM(certPem)
+
+		if err != nil {
+			return nil, nil, err
+		}
+		cert = certA[0]
+	}
+	return key, cert, nil
+}
+
+func loadCertFromConf(key,cert string) (*rsa.PrivateKey,*x509.Certificate,error){
+	keyPem, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return nil, nil, err
+	}
+	certPem, err := base64.StdEncoding.DecodeString(cert)
+	if err != nil {
+		return nil, nil, err
+	}
+	return parseKeyCertPEM(keyPem, certPem)
 }
