@@ -204,7 +204,12 @@ func AddInitConfigFlags(flagSet *flag.FlagSet, cfg *kubeadmapiext.MasterConfigur
 		"The duration before the bootstrap token is automatically deleted. 0 means 'never expires'.",
 	)
 	flagSet.StringVar(featureGatesString, "feature-gates", *featureGatesString, "A set of key=value pairs that describe feature gates for various features. "+
-		"Options are:\n"+strings.Join(features.KnownFeatures(&features.InitFeatureGates), "\n"))
+		"Options are:\n"+strings.Join(features.KnownFeatures(&features.InitFeatureGates), "\n"),
+	)
+	flagSet.StringVar(
+		&cfg.ClusterName, "cluster-name", cfg.ClusterName,
+		"Cluster name. Used for tagging cloud provider resources",
+	)
 }
 
 // AddInitOtherFlags adds init flags that are not bound to a configuration file to the given flagset
