@@ -221,6 +221,10 @@ func getControllerManagerCommand(cfg *kubeadmapi.MasterConfiguration, k8sVersion
 		"controllers":                      "*,bootstrapsigner,tokencleaner",
 	}
 
+	if cfg.ClusterName != "" {
+		defaultArguments["cluster-name"] = cfg.ClusterName
+	}
+
 	// If using external CA, pass empty string to controller manager instead of ca.key/ca.crt path,
 	// so that the csrsigning controller fails to start
 	if res, _ := certphase.UsingExternalCA(cfg); res {
