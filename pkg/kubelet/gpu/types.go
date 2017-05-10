@@ -16,7 +16,10 @@ limitations under the License.
 
 package gpu
 
-import "k8s.io/kubernetes/pkg/api/v1"
+import (
+	"k8s.io/kubernetes/pkg/api/v1"
+	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
+)
 
 // GPUManager manages GPUs on a local node.
 // Implementations are expected to be thread safe.
@@ -29,4 +32,5 @@ type GPUManager interface {
 	// Returns paths to allocated GPUs and nil on success.
 	// Returns an error on failure.
 	AllocateGPU(*v1.Pod, *v1.Container) ([]string, error)
+	GetGPULibraryMounts(*v1.Container) (*kubecontainer.Mount, string, error)
 }

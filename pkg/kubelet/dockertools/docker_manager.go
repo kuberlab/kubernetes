@@ -741,7 +741,8 @@ func (dm *DockerManager) runContainer(
 			CPUShares:  cpuShares,
 			Devices:    devices,
 		},
-		SecurityOpt: fmtSecurityOpts,
+		SecurityOpt:  fmtSecurityOpts,
+		VolumeDriver: opts.DockerVolumeDriver,
 	}
 
 	updateHostConfig(hc, opts)
