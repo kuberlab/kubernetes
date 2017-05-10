@@ -417,6 +417,8 @@ type RunContainerOptions struct {
 	Envs []EnvVar
 	// The mounts for the containers.
 	Mounts []Mount
+	//Docker volume driver
+	DockerVolumeDriver string
 	// The host devices mapped into the containers.
 	Devices []DeviceInfo
 	// The port mappings for the containers.

@@ -26,11 +26,14 @@ import (
 
 	"github.com/golang/glog"
 
+	"github.com/NVIDIA/nvidia-docker/src/nvidia"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/kubelet/dockertools"
 	"k8s.io/kubernetes/pkg/kubelet/gpu"
+	"k8s.io/kubernetes/pkg/kubelet/gpu/nvidia/docker"
+	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 )
 
 // TODO: rework to use Nvidia's NVML, which is more complex, but also provides more fine-grained information and stats.
@@ -272,4 +275,27 @@ func (ngm *nvidiaGPUManager) gpusInUse() *podGPUs {
 
 func isValidPath(path string) bool {
 	return regexp.MustCompile(nvidiaFullpathRE).MatchString(path)
+}
+
+func (ngm *nvidiaGPUManager) GetGPULibraryMounts(container *v1.Container) (binding *kubecontainer.Mount, driver string, err error) {
+	var vols []string
+	vols, err = docker.VolumesNeeded(container.Image)
+	if err != nil {
+		return
+	}
+
+	if vols != nil {
+		err = nvidia.LoadUVM()
+		if err != nil {
+			return
+		}
+		err = nvidia.Init()
+		if err != nil {
+			return
+		}
+		binding, driver, err = docker.VolumesArgs(vols)
+		nvidia.Shutdown()
+		return
+	}
+	return
 }

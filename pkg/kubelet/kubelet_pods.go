@@ -103,6 +103,16 @@ func (kl *Kubelet) makeDevices(pod *v1.Pod, container *v1.Container) ([]kubecont
 	return devices, nil
 }
 
+// makeDevices determines the devices for the given container.
+// Experimental.
+func (kl *Kubelet) makeGPUMounts(container *v1.Container) (*kubecontainer.Mount, string, error) {
+	if container.Resources.Limits.NvidiaGPU().IsZero() {
+		return nil, "", nil
+	}
+
+	return kl.gpuManager.GetGPULibraryMounts(container)
+}
+
 // makeMounts determines the mount points for the given container.
 func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, hostDomain, podIP string, podVolumes kubecontainer.VolumeMap) ([]kubecontainer.Mount, error) {
 	// Kubernetes only mounts on /etc/hosts if :
@@ -319,6 +329,12 @@ func (kl *Kubelet) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Contai
 	opts.Mounts, err = makeMounts(pod, kl.getPodDir(pod.UID), container, hostname, hostDomainName, podIP, volumes)
 	if err != nil {
 		return nil, false, err
+	}
+	if gpuMounts, gpuVolumeDriver, err := kl.makeGPUMounts(container); err != nil {
+		return nil, false, err
+	} else if gpuMounts != nil {
+		opts.Mounts = append(opts.Mounts, *gpuMounts)
+		opts.DockerVolumeDriver = gpuVolumeDriver
 	}
 	opts.Envs, err = kl.makeEnvironmentVariables(pod, container, podIP)
 	if err != nil {
