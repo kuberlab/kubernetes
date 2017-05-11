@@ -25,15 +25,13 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-
-	"github.com/NVIDIA/nvidia-docker/src/nvidia"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/kubernetes/pkg/api/v1"
+	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/dockertools"
 	"k8s.io/kubernetes/pkg/kubelet/gpu"
-	"k8s.io/kubernetes/pkg/kubelet/gpu/nvidia/docker"
-	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
+	"k8s.io/kubernetes/pkg/kubelet/gpu/nvidia/docker-plugin"
 )
 
 // TODO: rework to use Nvidia's NVML, which is more complex, but also provides more fine-grained information and stats.
@@ -47,6 +45,8 @@ const (
 	devDirectory                = "/dev"
 	nvidiaDeviceRE              = `^nvidia[0-9]*$`
 	nvidiaFullpathRE            = `^/dev/nvidia[0-9]*$`
+
+	confNVidiaPlugin = "experimental.kubernetes.io/nvidia-gpu-driver"
 )
 
 type activePodsLister interface {
@@ -277,25 +277,11 @@ func isValidPath(path string) bool {
 	return regexp.MustCompile(nvidiaFullpathRE).MatchString(path)
 }
 
-func (ngm *nvidiaGPUManager) GetGPULibraryMounts(container *v1.Container) (binding *kubecontainer.Mount, driver string, err error) {
-	var vols []string
-	vols, err = docker.VolumesNeeded(container.Image)
-	if err != nil {
+func (ngm *nvidiaGPUManager) GetGPULibraryMounts(pod *v1.Pod, _ *v1.Container) (binding *kubecontainer.Mount, driver string, err error) {
+	if adress, ok := pod.Annotations[confNVidiaPlugin]; !ok {
+		return
+	} else {
+		binding, driver, err = docker_plugin.GetNVIDIADriverMount(adress)
 		return
 	}
-
-	if vols != nil {
-		err = nvidia.LoadUVM()
-		if err != nil {
-			return
-		}
-		err = nvidia.Init()
-		if err != nil {
-			return
-		}
-		binding, driver, err = docker.VolumesArgs(vols)
-		nvidia.Shutdown()
-		return
-	}
-	return
 }
