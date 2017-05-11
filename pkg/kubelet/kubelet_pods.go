@@ -105,12 +105,12 @@ func (kl *Kubelet) makeDevices(pod *v1.Pod, container *v1.Container) ([]kubecont
 
 // makeDevices determines the devices for the given container.
 // Experimental.
-func (kl *Kubelet) makeGPUMounts(container *v1.Container) (*kubecontainer.Mount, string, error) {
+func (kl *Kubelet) makeGPUMounts(pod *v1.Pod, container *v1.Container) (*kubecontainer.Mount, string, error) {
 	if container.Resources.Limits.NvidiaGPU().IsZero() {
 		return nil, "", nil
 	}
 
-	return kl.gpuManager.GetGPULibraryMounts(container)
+	return kl.gpuManager.GetGPULibraryMounts(pod,container)
 }
 
 // makeMounts determines the mount points for the given container.
@@ -309,7 +309,7 @@ func (kl *Kubelet) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Contai
 	if err != nil {
 		return nil, false, err
 	}
-	if gpuMounts, gpuVolumeDriver, err := kl.makeGPUMounts(container); err != nil {
+	if gpuMounts, gpuVolumeDriver, err := kl.makeGPUMounts(pod, container); err != nil {
 		return nil, false, err
 	} else if gpuMounts != nil {
 		opts.Mounts = append(opts.Mounts, *gpuMounts)
