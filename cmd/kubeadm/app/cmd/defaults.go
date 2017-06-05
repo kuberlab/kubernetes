@@ -18,7 +18,9 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"net"
+	"os"
 
 	netutil "k8s.io/apimachinery/pkg/util/net"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
@@ -29,6 +31,7 @@ import (
 	"github.com/blang/semver"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 	_ "k8s.io/kubernetes/pkg/cloudprovider/providers"
+	"k8s.io/kubernetes/cmd/kubeadm/app/master"
 	"k8s.io/kubernetes/pkg/util/node"
 )
 
@@ -48,7 +51,16 @@ func setInitDynamicDefaults(cfg *kubeadmapi.MasterConfiguration) error {
 		cfg.PublicAddress = cfg.API.AdvertiseAddress
 	}
 	if cfg.HostnameOverride == "" && cfg.CloudProvider != "" && cloudprovider.IsCloudProvider(cfg.CloudProvider) {
-		cloudSupport, err := cloudprovider.GetCloudProvider(cfg.CloudProvider, nil)
+		// If need to pass cloud config.
+		var config io.Reader = nil
+		if _, err = os.Stat(master.DefaultCloudConfigPath); err != nil {
+			return err
+		}
+		config, err = os.Open(master.DefaultCloudConfigPath)
+		if err != nil {
+			return err
+		}
+		cloudSupport, err := cloudprovider.GetCloudProvider(cfg.CloudProvider, config)
 		if err != nil {
 			fmt.Printf("[init] WARNING: Failed to get support for cloudprovider '%s'", cfg.CloudProvider)
 		} else {
