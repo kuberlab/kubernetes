@@ -32,5 +32,6 @@ type GPUManager interface {
 	// Returns paths to allocated GPUs and nil on success.
 	// Returns an error on failure.
 	AllocateGPU(*v1.Pod, *v1.Container) ([]string, error)
+	GetGPUDevices(*v1.Pod, *v1.Container) ([]string, error)
 	GetGPULibraryMounts(*v1.Pod, *v1.Container) (*kubecontainer.Mount, string, error)
 }

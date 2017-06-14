@@ -36,8 +36,11 @@ func (gms *gpuManagerStub) Capacity() v1.ResourceList {
 func (gms *gpuManagerStub) AllocateGPU(_ *v1.Pod, _ *v1.Container) ([]string, error) {
 	return nil, fmt.Errorf("GPUs are not supported")
 }
+func (ngm *gpuManagerStub) GetGPUDevices(*v1.Pod, *v1.Container) ([]string, error) {
+	return nil, fmt.Errorf("GPUs are not supported")
+}
 func (ngm *gpuManagerStub) GetGPULibraryMounts(_ *v1.Pod, _ *v1.Container) (*kubecontainer.Mount, string, error) {
-	return nil, "", fmt.Errorf("GPUs are not supported")
+	return nil, "", nil
 }
 func NewGPUManagerStub() GPUManager {
 	return &gpuManagerStub{}

@@ -87,6 +87,13 @@ func (kl *Kubelet) GetActivePods() []*v1.Pod {
 // Experimental.
 func (kl *Kubelet) makeDevices(pod *v1.Pod, container *v1.Container) ([]kubecontainer.DeviceInfo, error) {
 	if container.Resources.Limits.NvidiaGPU().IsZero() {
+		if free, err := kl.gpuManager.GetGPUDevices(pod, container); err == nil && len(free) > 0 {
+			var devices []kubecontainer.DeviceInfo
+			for _, path := range free {
+				devices = append(devices, kubecontainer.DeviceInfo{PathOnHost: path, PathInContainer: path, Permissions: "mrw"})
+			}
+			return devices, nil
+		}
 		return nil, nil
 	}
 
@@ -106,11 +113,7 @@ func (kl *Kubelet) makeDevices(pod *v1.Pod, container *v1.Container) ([]kubecont
 // makeDevices determines the devices for the given container.
 // Experimental.
 func (kl *Kubelet) makeGPUMounts(pod *v1.Pod, container *v1.Container) (*kubecontainer.Mount, string, error) {
-	if container.Resources.Limits.NvidiaGPU().IsZero() {
-		return nil, "", nil
-	}
-
-	return kl.gpuManager.GetGPULibraryMounts(pod,container)
+	return kl.gpuManager.GetGPULibraryMounts(pod, container)
 }
 
 // makeMounts determines the mount points for the given container.

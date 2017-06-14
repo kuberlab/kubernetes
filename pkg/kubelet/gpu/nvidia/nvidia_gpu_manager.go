@@ -32,6 +32,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/dockertools"
 	"k8s.io/kubernetes/pkg/kubelet/gpu"
 	"k8s.io/kubernetes/pkg/kubelet/gpu/nvidia/docker-plugin"
+	"strconv"
 )
 
 // TODO: rework to use Nvidia's NVML, which is more complex, but also provides more fine-grained information and stats.
@@ -116,6 +117,16 @@ func (ngm *nvidiaGPUManager) Capacity() v1.ResourceList {
 	return v1.ResourceList{
 		v1.ResourceNvidiaGPU: *gpus,
 	}
+}
+func (ngm *nvidiaGPUManager) GetGPUDevices(pod *v1.Pod, container *v1.Container) ([]string, error) {
+	for _, e := range container.Env {
+		if e.Name == "KUBERLAB_GPU" {
+			if e.Value == "all" {
+				return ngm.allGPUs.List(), nil
+			}
+		}
+	}
+	return nil, nil
 }
 
 // AllocateGPUs returns `num` GPUs if available, error otherwise.
