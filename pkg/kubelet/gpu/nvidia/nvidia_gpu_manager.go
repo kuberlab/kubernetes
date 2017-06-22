@@ -121,7 +121,9 @@ func (ngm *nvidiaGPUManager) GetGPUDevices(pod *v1.Pod, container *v1.Container)
 	for _, e := range container.Env {
 		if e.Name == "KUBERLAB_GPU" {
 			if e.Value == "all" {
-				return append(ngm.allGPUs.List(), ngm.defaultDevices...), nil
+				devices := []string{}
+				devices = append(devices, ngm.allGPUs.List()...)
+				return append(devices, ngm.defaultDevices...), nil
 			}
 		}
 	}
