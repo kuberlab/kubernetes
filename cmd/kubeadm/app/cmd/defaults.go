@@ -62,12 +62,12 @@ func setInitDynamicDefaults(cfg *kubeadmapi.MasterConfiguration) error {
 		}
 		cloudSupport, err := cloudprovider.GetCloudProvider(cfg.CloudProvider, config)
 		if err != nil {
-			fmt.Printf("[init] WARNING: Failed to get support for cloudprovider '%s'", cfg.CloudProvider)
+			fmt.Printf("[init] WARNING: Failed to get support for cloudprovider '%s': %v\n", cfg.CloudProvider,err)
 		} else {
 			if instances, ok := cloudSupport.Instances(); ok {
 				if name, err := instances.CurrentNodeName(node.GetHostname("")); err != nil {
-					fmt.Printf("[init] WARNING: Failed to get node name for cloud provider '%s'",
-						cfg.CloudProvider)
+					fmt.Printf("[init] WARNING: Failed to get node name for cloud provider '%s': %v\n",
+						cfg.CloudProvider,err)
 				} else {
 					cfg.HostnameOverride = string(name)
 					fmt.Printf("[init] Using Kubernetes nodename %s for cloud provider: %s\n",
