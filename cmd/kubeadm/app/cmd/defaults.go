@@ -52,12 +52,13 @@ func setInitDynamicDefaults(cfg *kubeadmapi.MasterConfiguration) error {
 	if cfg.HostnameOverride == "" && cfg.CloudProvider != "" && cloudprovider.IsCloudProvider(cfg.CloudProvider) {
 		// If need to pass cloud config.
 		var config io.Reader = nil
-		if _, err = os.Stat(master.DefaultCloudConfigPath); err != nil {
-			return err
+		if _, err = os.Stat(master.DefaultCloudConfigPath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Not exists: %v", err)
 		}
 		config, err = os.Open(master.DefaultCloudConfigPath)
-		if err != nil {
-			return err
+		// Return error only if specified file exists and error relates to read.
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Not exists: %v", err)
 		}
 		cloudSupport, err := cloudprovider.GetCloudProvider(cfg.CloudProvider, config)
 		if err != nil {
