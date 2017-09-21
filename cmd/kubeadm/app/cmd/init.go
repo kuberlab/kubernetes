@@ -41,6 +41,7 @@ import (
 	"k8s.io/kubernetes/cmd/kubeadm/app/preflight"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/util/node"
 	"k8s.io/kubernetes/pkg/util/version"
 )
 
@@ -239,7 +240,7 @@ func (i *Init) Run(out io.Writer) error {
 	// PHASE 2: Generate kubeconfig files for the admin and the kubelet
 
 	masterEndpoint := fmt.Sprintf("https://%s:%d", i.cfg.PublicAddress, i.cfg.API.BindPort)
-	err = kubeconfigphase.CreateInitKubeConfigFiles(masterEndpoint, i.cfg.CertificatesDir, kubeadmapi.GlobalEnvParams.KubernetesDir, i.cfg.NodeName)
+	err = kubeconfigphase.CreateInitKubeConfigFiles(masterEndpoint, i.cfg.CertificatesDir, kubeadmapi.GlobalEnvParams.KubernetesDir, node.GetHostname(i.cfg.HostnameOverride))
 	if err != nil {
 		return err
 	}
