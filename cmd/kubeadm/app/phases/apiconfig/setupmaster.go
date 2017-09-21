@@ -30,19 +30,21 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
+	"k8s.io/kubernetes/pkg/util/node"
+	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 )
 
 const apiCallRetryInterval = 500 * time.Millisecond
 
 // TODO: Can we think of any unit tests here? Or should this code just be covered through integration/e2e tests?
 
-func attemptToUpdateMasterRoleLabelsAndTaints(client *clientset.Clientset, nodeName string) error {
+func attemptToUpdateMasterRoleLabelsAndTaints(cfg *kubeadmapi.MasterConfiguration,client *clientset.Clientset) (bool,error) {
 	var n *v1.Node
 
 	// Wait for current node registration
 	wait.PollInfinite(kubeadmconstants.APICallRetryInterval, func() (bool, error) {
 		var err error
-		if n, err = client.Nodes().Get(nodeName, metav1.GetOptions{}); err != nil {
+		if n, err = client.Nodes().Get(node.GetHostname(cfg.HostnameOverride), metav1.GetOptions{}); err != nil {
 			return false, nil
 		}
 		// The node may appear to have no labels at first,
@@ -53,7 +55,7 @@ func attemptToUpdateMasterRoleLabelsAndTaints(client *clientset.Clientset, nodeN
 
 	oldData, err := json.Marshal(n)
 	if err != nil {
-		return err
+		return true, err
 	}
 
 	// The master node is tainted and labelled accordingly
@@ -62,25 +64,25 @@ func attemptToUpdateMasterRoleLabelsAndTaints(client *clientset.Clientset, nodeN
 
 	newData, err := json.Marshal(n)
 	if err != nil {
-		return err
+		return true, err
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, v1.Node{})
 	if err != nil {
-		return err
+		return true, err
 	}
 
 	if _, err := client.Nodes().Patch(n.Name, types.StrategicMergePatchType, patchBytes); err != nil {
 		if apierrs.IsConflict(err) {
 			fmt.Println("[apiclient] Temporarily unable to update master node metadata due to conflict (will retry)")
 			time.Sleep(apiCallRetryInterval)
-			attemptToUpdateMasterRoleLabelsAndTaints(client, nodeName)
+			attemptToUpdateMasterRoleLabelsAndTaints(cfg, client)
+			return false,nil
 		} else {
-			return err
+			return true,err
 		}
 	}
-
-	return nil
+	return true,nil
 }
 
 func addTaintIfNotExists(n *v1.Node, t v1.Taint) {
@@ -94,9 +96,11 @@ func addTaintIfNotExists(n *v1.Node, t v1.Taint) {
 }
 
 // UpdateMasterRoleLabelsAndTaints taints the master and sets the master label
-func UpdateMasterRoleLabelsAndTaints(client *clientset.Clientset, nodeName string) error {
-	// TODO: Use iterate instead of recursion
-	err := attemptToUpdateMasterRoleLabelsAndTaints(client, nodeName)
+func UpdateMasterRoleLabelsAndTaints(cfg *kubeadmapi.MasterConfiguration, client *clientset.Clientset) error {
+	err := wait.PollInfinite(kubeadmconstants.APICallRetryInterval,
+		func() (bool, error) {
+			return attemptToUpdateMasterRoleLabelsAndTaints(cfg, client)
+		})
 	if err != nil {
 		return fmt.Errorf("failed to update master node - [%v]", err)
 	}

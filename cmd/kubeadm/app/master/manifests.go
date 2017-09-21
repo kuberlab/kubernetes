@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/net"
 	api "k8s.io/client-go/pkg/api/v1"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	kubeadmapiext "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1alpha1"
@@ -39,6 +40,7 @@ import (
 	authzmodes "k8s.io/kubernetes/pkg/kubeapiserver/authorizer/modes"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
+	"k8s.io/kubernetes/pkg/util/node"
 	"k8s.io/kubernetes/pkg/util/version"
 )
 
@@ -119,9 +121,13 @@ func WriteStaticPodManifests(cfg *kubeadmapi.MasterConfiguration) error {
 
 	// Add etcd static pod spec only if external etcd is not configured
 	if len(cfg.Etcd.Endpoints) == 0 {
+		etcdCommand, err := getEtcdCommand(cfg)
+		if err != nil {
+			return err
+		}
 		etcdPod := componentPod(api.Container{
 			Name:          etcd,
-			Command:       getEtcdCommand(cfg),
+			Command:       etcdCommand,
 			VolumeMounts:  []api.VolumeMount{certsVolumeMount(), etcdVolumeMount(cfg.Etcd.DataDir), k8sVolumeMount()},
 			Image:         images.GetCoreImage(images.KubeEtcdImage, cfg, kubeadmapi.GlobalEnvParams.EtcdImage),
 			LivenessProbe: componentProbe(2379, "/health", api.URISchemeHTTP),
@@ -346,6 +352,9 @@ func getAPIServerCommand(cfg *kubeadmapi.MasterConfiguration, selfHosted bool, k
 		"requestheader-client-ca-file":       filepath.Join(cfg.CertificatesDir, kubeadmconstants.FrontProxyCACertName),
 		"requestheader-allowed-names":        "front-proxy-client",
 	}
+	if cfg.Count > 0 {
+		defaultArguments["apiserver-count"] = fmt.Sprintf("%d", cfg.Count)
+	}
 	if k8sVersion.AtLeast(kubeadmconstants.MinimumAPIAggregationVersion) {
 		// add options which allow the kube-apiserver to act as a front-proxy to aggregated API servers
 		defaultArguments["proxy-client-cert-file"] = filepath.Join(cfg.CertificatesDir, kubeadmconstants.FrontProxyClientCertName)
@@ -395,19 +404,37 @@ func getAPIServerCommand(cfg *kubeadmapi.MasterConfiguration, selfHosted bool, k
 	return command
 }
 
-func getEtcdCommand(cfg *kubeadmapi.MasterConfiguration) []string {
+func getEtcdCommand(cfg *kubeadmapi.MasterConfiguration) ([]string, error) {
 	var command []string
-
-	defaultArguments := map[string]string{
-		"listen-client-urls":    "http://127.0.0.1:2379",
-		"advertise-client-urls": "http://127.0.0.1:2379",
-		"data-dir":              cfg.Etcd.DataDir,
+	var defaultArguments map[string]string
+	if len(cfg.Etcd.Discovery) > 1 {
+		//Use etcd discovery for multi master
+		name := node.GetHostname(cfg.HostnameOverride)
+		ip, err := net.ChooseHostInterface()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get host interface address for etcd [%v]", err)
+		}
+		defaultArguments = map[string]string{
+			"name": name,
+			"initial-advertise-peer-urls": fmt.Sprintf("http://%v:2380", ip.String()),
+			"listen-peer-urls":            fmt.Sprintf("http://%v:2380", ip.String()),
+			"listen-client-urls":          fmt.Sprintf("http://%v:2379,http://127.0.0.1:2379", ip.String()),
+			"advertise-client-urls":       fmt.Sprintf("http://%v:2379", ip.String()),
+			"discovery":                   cfg.Etcd.Discovery,
+			"data-dir":                    cfg.Etcd.DataDir,
+		}
+	} else {
+		defaultArguments = map[string]string{
+			"listen-client-urls":    "http://127.0.0.1:2379",
+			"advertise-client-urls": "http://127.0.0.1:2379",
+			"data-dir":              cfg.Etcd.DataDir,
+		}
 	}
 
 	command = append(command, "etcd")
 	command = append(command, getExtraParameters(cfg.Etcd.ExtraArgs, defaultArguments)...)
 
-	return command
+	return command, nil
 }
 
 func getControllerManagerCommand(cfg *kubeadmapi.MasterConfiguration, selfHosted bool, k8sVersion *version.Version) []string {
@@ -434,7 +461,9 @@ func getControllerManagerCommand(cfg *kubeadmapi.MasterConfiguration, selfHosted
 		// TODO(luxas): Remove this once we're targeting v1.8 at HEAD
 		defaultArguments["insecure-experimental-approve-all-kubelet-csrs-for-group"] = bootstrapapi.BootstrapGroup
 	}
-
+	if cfg.ClusterName != "" {
+		defaultArguments["cluster-name"] = cfg.ClusterName
+	}
 	command = getComponentBaseCommand(controllerManager)
 	command = append(command, getExtraParameters(cfg.ControllerManagerExtraArgs, defaultArguments)...)
 

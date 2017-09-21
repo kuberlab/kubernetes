@@ -278,7 +278,9 @@ func deletePermissiveNodesBindingWhenUsingNodeAuthorization(clientset *clientset
 		nodesRoleBinding.Subjects = newSubjects
 
 		if _, err := clientset.RbacV1beta1().ClusterRoleBindings().Update(nodesRoleBinding); err != nil {
-			return err
+			if !kubeadmutil.AlreadyExistsError(err) {
+				return err
+			}
 		}
 	}
 

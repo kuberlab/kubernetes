@@ -49,6 +49,16 @@ type MasterConfiguration struct {
 	APIServerCertSANs []string `json:"apiServerCertSANs"`
 	// CertificatesDir specifies where to store or look for all required certificates
 	CertificatesDir string `json:"certificatesDir"`
+
+	MasterCertificates *MasterCertificates `json:"masterCertificates,omitempty"`
+	// Public Addr or DNS
+	PublicAddress string `json:"publicAddress"`
+	//Masters Count
+	Count int `json:"count"`
+
+	//required for cloud providers. To make right tag for resources
+	ClusterName      string
+	HostnameOverride string `json:"hostNameOverride"`
 }
 
 type API struct {
@@ -77,6 +87,9 @@ type Etcd struct {
 	KeyFile   string            `json:"keyFile"`
 	DataDir   string            `json:"dataDir"`
 	ExtraArgs map[string]string `json:"extraArgs"`
+
+	//Discovery URL for etcd cluster
+	Discovery string `json:"discovery"`
 }
 
 type NodeConfiguration struct {
@@ -89,4 +102,18 @@ type NodeConfiguration struct {
 	NodeName                 string   `json:"nodeName"`
 	TLSBootstrapToken        string   `json:"tlsBootstrapToken"`
 	Token                    string   `json:"token"`
+}
+
+type MasterCertificates struct {
+	CAKeyPem                string
+	CACertPem               string
+	APIServerKeyPem         string
+	APIServerCertPem        string
+	APIClientServerKeyPem   string
+	APIClientServerCertPem  string
+	SAKeyPem                string
+	FrontProxyKeyPem        string
+	FrontProxyCertPem       string
+	FrontProxyClientKeyPem  string
+	FrontProxyClientCertPem string
 }

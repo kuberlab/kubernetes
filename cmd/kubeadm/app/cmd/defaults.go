@@ -18,7 +18,9 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"net"
+	"os"
 
 	netutil "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -27,8 +29,11 @@ import (
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	tokenutil "k8s.io/kubernetes/cmd/kubeadm/app/util/token"
 	authzmodes "k8s.io/kubernetes/pkg/kubeapiserver/authorizer/modes"
-	"k8s.io/kubernetes/pkg/util/node"
 	"k8s.io/kubernetes/pkg/util/version"
+	"k8s.io/kubernetes/pkg/cloudprovider"
+	_ "k8s.io/kubernetes/pkg/cloudprovider/providers"
+	"k8s.io/kubernetes/cmd/kubeadm/app/master"
+	"k8s.io/kubernetes/pkg/util/node"
 )
 
 func setInitDynamicDefaults(cfg *kubeadmapi.MasterConfiguration) error {
@@ -40,6 +45,36 @@ func setInitDynamicDefaults(cfg *kubeadmapi.MasterConfiguration) error {
 		return err
 	}
 	cfg.API.AdvertiseAddress = ip.String()
+
+	if cfg.PublicAddress == "" {
+		cfg.PublicAddress = cfg.API.AdvertiseAddress
+	}
+	if cfg.HostnameOverride == "" && cfg.CloudProvider != "" && cloudprovider.IsCloudProvider(cfg.CloudProvider) {
+		// If need to pass cloud config.
+		var config io.Reader = nil
+		if _, err = os.Stat(master.DefaultCloudConfigPath); err != nil {
+			return err
+		}
+		config, err = os.Open(master.DefaultCloudConfigPath)
+		if err != nil {
+			return err
+		}
+		cloudSupport, err := cloudprovider.GetCloudProvider(cfg.CloudProvider, config)
+		if err != nil {
+			fmt.Printf("[init] WARNING: Failed to get support for cloudprovider '%s'", cfg.CloudProvider)
+		} else {
+			if instances, ok := cloudSupport.Instances(); ok {
+				if name, err := instances.CurrentNodeName(node.GetHostname("")); err != nil {
+					fmt.Printf("[init] WARNING: Failed to get node name for cloud provider '%s'",
+						cfg.CloudProvider)
+				} else {
+					cfg.HostnameOverride = string(name)
+					fmt.Printf("[init] Using Kubernetes nodename %s for cloud provider: %s\n",
+						cfg.HostnameOverride, cfg.CloudProvider)
+				}
+			}
+		}
+	}
 
 	// Validate version argument
 	ver, err := kubeadmutil.KubernetesReleaseVersion(cfg.KubernetesVersion)
@@ -76,6 +111,9 @@ func setInitDynamicDefaults(cfg *kubeadmapi.MasterConfiguration) error {
 		if err != nil {
 			return fmt.Errorf("couldn't generate random token: %v", err)
 		}
+	}
+	if cfg.Etcd.DataDir == "" && len(cfg.Etcd.Endpoints) == 0 {
+		cfg.Etcd.DataDir = "/var/lib/etcd"
 	}
 
 	// Use cfg.NodeName if set, otherwise get that from os.Hostname(). This also makes sure the hostname is lower-cased
