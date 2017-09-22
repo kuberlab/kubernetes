@@ -109,6 +109,7 @@ type NodeConfiguration struct {
 	NodeName                 string
 	TLSBootstrapToken        string
 	Token                    string
+	CloudProvider            string
 }
 
 type MasterCertificates struct {

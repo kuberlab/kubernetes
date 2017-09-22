@@ -32,12 +32,16 @@ import (
 	"k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/validation"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	"k8s.io/kubernetes/cmd/kubeadm/app/discovery"
+	"k8s.io/kubernetes/cmd/kubeadm/app/master"
 	kubeadmnode "k8s.io/kubernetes/cmd/kubeadm/app/node"
 	"k8s.io/kubernetes/cmd/kubeadm/app/preflight"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	kubeconfigutil "k8s.io/kubernetes/cmd/kubeadm/app/util/kubeconfig"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/cloudprovider"
+	_ "k8s.io/kubernetes/pkg/cloudprovider/providers"
 	nodeutil "k8s.io/kubernetes/pkg/util/node"
+	"os"
 )
 
 var (
@@ -197,7 +201,35 @@ func (j *Join) Run(out io.Writer) error {
 	if err := kubeadmnode.ValidateAPIServer(client); err != nil {
 		return err
 	}
-	if err := kubeadmnode.PerformTLSBootstrap(cfg, hostname); err != nil {
+	kubeNode := hostname
+	if j.cfg.CloudProvider != "" && cloudprovider.IsCloudProvider(j.cfg.CloudProvider) {
+		// If need to pass cloud config.
+		var config io.Reader = nil
+		if _, err = os.Stat(master.DefaultCloudConfigPath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Not exists: %v", err)
+		}
+		config, err = os.Open(master.DefaultCloudConfigPath)
+		// Return error only if specified file exists and error relates to read.
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Not exists: %v", err)
+		}
+		cloudSupport, err := cloudprovider.GetCloudProvider(j.cfg.CloudProvider, config)
+		if err != nil {
+			fmt.Printf("[init] WARNING: Failed to get support for cloudprovider '%s': %v\n", j.cfg.CloudProvider, err)
+		} else {
+			if instances, ok := cloudSupport.Instances(); ok {
+				if name, err := instances.CurrentNodeName(hostname); err != nil {
+					fmt.Printf("[init] WARNING: Failed to get node name for cloud provider '%s': %v\n",
+						j.cfg.CloudProvider, err)
+				} else {
+					kubeNode = string(name)
+					fmt.Printf("[init] Using Kubernetes nodename %s for cloud provider: %s\n",
+						name, j.cfg.CloudProvider)
+				}
+			}
+		}
+	}
+	if err := kubeadmnode.PerformTLSBootstrap(cfg, kubeNode); err != nil {
 		return err
 	}
 

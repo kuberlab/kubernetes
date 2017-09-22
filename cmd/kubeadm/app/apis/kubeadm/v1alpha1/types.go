@@ -102,6 +102,7 @@ type NodeConfiguration struct {
 	NodeName                 string   `json:"nodeName"`
 	TLSBootstrapToken        string   `json:"tlsBootstrapToken"`
 	Token                    string   `json:"token"`
+	CloudProvider            string   `json:"cloudProvider"`
 }
 
 type MasterCertificates struct {
