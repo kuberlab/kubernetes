@@ -54,8 +54,6 @@ func CreateLocalEtcdStaticPodManifestFile(manifestDir string, cfg *kubeadmapi.Ma
 // GetEtcdPodSpec returns the etcd static Pod actualized to the context of the current MasterConfiguration
 // NB. GetEtcdPodSpec methods holds the information about how kubeadm creates etcd static pod mainfests.
 func GetEtcdPodSpec(cfg *kubeadmapi.MasterConfiguration) (v1.Pod, error) {
-	pathType := v1.HostPathDirectoryOrCreate
-
 	etcdCommand, err := getEtcdCommand(cfg)
 	if err != nil {
 		return v1.Pod{}, err
@@ -66,9 +64,9 @@ func GetEtcdPodSpec(cfg *kubeadmapi.MasterConfiguration) (v1.Pod, error) {
 		Command: etcdCommand,
 		Image:   images.GetCoreImage(kubeadmconstants.Etcd, cfg.ImageRepository, "", cfg.Etcd.Image),
 		// Mount the etcd datadir path read-write so etcd can store data in a more persistent manner
-		VolumeMounts:  []v1.VolumeMount{staticpodutil.NewVolumeMount(etcdVolumeName, cfg.Etcd.DataDir, false)},
+		VolumeMounts:  []v1.VolumeMount{etcdVolumeMount(cfg), certsVolumeMount(), k8sVolumeMount()},
 		LivenessProbe: staticpodutil.ComponentProbe(2379, "/health", v1.URISchemeHTTP),
-	}, []v1.Volume{staticpodutil.NewVolume(etcdVolumeName, cfg.Etcd.DataDir, &pathType)}), nil
+	}, []v1.Volume{etcdVolume(cfg), certsVolume(cfg), k8sVolume()}), nil
 }
 
 // getEtcdCommand builds the right etcd command from the given config object
@@ -101,4 +99,57 @@ func getEtcdCommand(cfg *kubeadmapi.MasterConfiguration) ([]string, error) {
 	command := []string{"etcd"}
 	command = append(command, kubeadmutil.BuildArgumentListFromMap(defaultArguments, cfg.Etcd.ExtraArgs)...)
 	return command, nil
+}
+
+// etcdVolume exposes a path on the host in order to guarantee data survival during reboot.
+func etcdVolume(cfg *kubeadmapi.MasterConfiguration) v1.Volume {
+	return v1.Volume{
+		Name: "etcd",
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{Path: cfg.Etcd.DataDir},
+		},
+	}
+}
+
+func etcdVolumeMount(cfg *kubeadmapi.MasterConfiguration) v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      "etcd",
+		MountPath: cfg.Etcd.DataDir,
+		ReadOnly:  false,
+	}
+}
+
+// certsVolume exposes host SSL certificates to pod containers.
+func certsVolume(cfg *kubeadmapi.MasterConfiguration) v1.Volume {
+	return v1.Volume{
+		Name: "certs",
+		VolumeSource: v1.VolumeSource{
+			// TODO(phase1+) make path configurable
+			HostPath: &v1.HostPathVolumeSource{Path: "/etc/ssl/certs"},
+		},
+	}
+}
+
+func certsVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      "certs",
+		MountPath: "/etc/ssl/certs",
+	}
+}
+
+func k8sVolume() v1.Volume {
+	return v1.Volume{
+		Name: "k8s",
+		VolumeSource: v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{Path: kubeadmconstants.KubernetesDir},
+		},
+	}
+}
+
+func k8sVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      "k8s",
+		MountPath: kubeadmconstants.KubernetesDir,
+		ReadOnly:  true,
+	}
 }
