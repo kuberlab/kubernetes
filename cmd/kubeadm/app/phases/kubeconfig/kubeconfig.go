@@ -34,6 +34,7 @@ import (
 	"k8s.io/kubernetes/cmd/kubeadm/app/phases/certs/pkiutil"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	kubeconfigutil "k8s.io/kubernetes/cmd/kubeadm/app/util/kubeconfig"
+	"k8s.io/kubernetes/pkg/util/node"
 )
 
 // clientCertAuth struct holds info required to build a client certificate to provide authentication info in a kubeconfig object
@@ -153,7 +154,7 @@ func getKubeConfigSpecs(cfg *kubeadmapi.MasterConfiguration) (map[string]*kubeCo
 		kubeadmconstants.KubeletKubeConfigFileName: {
 			CACert:     caCert,
 			APIServer:  masterEndpoint,
-			ClientName: fmt.Sprintf("system:node:%s", cfg.NodeName),
+			ClientName: fmt.Sprintf("system:node:%s", node.GetHostname(cfg.HostnameOverride)),
 			ClientCertAuth: &clientCertAuth{
 				CAKey:         caKey,
 				Organizations: []string{kubeadmconstants.NodesGroup},

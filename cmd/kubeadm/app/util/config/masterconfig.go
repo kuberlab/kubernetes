@@ -18,8 +18,10 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
+	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	netutil "k8s.io/apimachinery/pkg/util/net"
@@ -27,9 +29,12 @@ import (
 	kubeadmapiext "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1alpha1"
 	"k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/validation"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
+	"k8s.io/kubernetes/cmd/kubeadm/app/phases/controlplane"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	tokenutil "k8s.io/kubernetes/cmd/kubeadm/app/util/token"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/cloudprovider"
+	_ "k8s.io/kubernetes/pkg/cloudprovider/providers"
 	"k8s.io/kubernetes/pkg/util/node"
 	"k8s.io/kubernetes/pkg/util/version"
 )
@@ -54,6 +59,36 @@ func SetInitDynamicDefaults(cfg *kubeadmapi.MasterConfiguration) error {
 	if err != nil {
 		return err
 	}
+	if cfg.PublicAddress == "" {
+		cfg.PublicAddress = cfg.API.AdvertiseAddress
+	}
+	if cfg.HostnameOverride == "" && cfg.CloudProvider != "" && cloudprovider.IsCloudProvider(cfg.CloudProvider) {
+		// If need to pass cloud config.
+		var config io.Reader = nil
+		if _, err = os.Stat(controlplane.DefaultCloudConfigPath); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		config, err = os.Open(controlplane.DefaultCloudConfigPath)
+		// Return error only if specified file exists and error relates to read.
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		cloudSupport, err := cloudprovider.GetCloudProvider(cfg.CloudProvider, config)
+		if err != nil {
+			fmt.Printf("[init] WARNING: Failed to get support for cloudprovider '%s': %v\n", cfg.CloudProvider, err)
+		} else {
+			if instances, ok := cloudSupport.Instances(); ok {
+				if name, err := instances.CurrentNodeName(node.GetHostname("")); err != nil {
+					fmt.Printf("[init] WARNING: Failed to get node name for cloud provider '%s': %v\n", cfg.CloudProvider, err)
+				} else {
+					cfg.HostnameOverride = string(name)
+					fmt.Printf("[init] Using Kubernetes nodename %s for cloud provider: %s\n",
+						cfg.HostnameOverride, cfg.CloudProvider)
+				}
+			}
+		}
+	}
+
 	cfg.KubernetesVersion = ver
 
 	// Parse the given kubernetes version and make sure it's higher than the lowest supported
@@ -65,12 +100,21 @@ func SetInitDynamicDefaults(cfg *kubeadmapi.MasterConfiguration) error {
 		return fmt.Errorf("this version of kubeadm only supports deploying clusters with the control plane version >= %s. Current version: %s", kubeadmconstants.MinimumControlPlaneVersion.String(), cfg.KubernetesVersion)
 	}
 
+	// Warn about the limitations with the current cloudprovider solution.
+	if cfg.CloudProvider != "" {
+		fmt.Println("[init] WARNING: For cloudprovider integrations to work --cloud-provider must be set for all kubelets in the cluster.")
+		fmt.Println("\t(/etc/systemd/system/kubelet.service.d/10-kubeadm.conf should be edited for this purpose)")
+	}
+
 	if cfg.Token == "" {
 		var err error
 		cfg.Token, err = tokenutil.GenerateToken()
 		if err != nil {
 			return fmt.Errorf("couldn't generate random token: %v", err)
 		}
+	}
+	if cfg.Etcd.DataDir == "" && len(cfg.Etcd.Endpoints) == 0 {
+		cfg.Etcd.DataDir = "/var/lib/etcd"
 	}
 
 	cfg.NodeName = node.GetHostname(cfg.NodeName)
