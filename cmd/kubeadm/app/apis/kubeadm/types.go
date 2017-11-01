@@ -69,7 +69,6 @@ type MasterConfiguration struct {
 	HostnameOverride string
 }
 
-
 // API struct contains elements of API server address.
 type API struct {
 	// AdvertiseAddress sets the address for the API server to advertise.

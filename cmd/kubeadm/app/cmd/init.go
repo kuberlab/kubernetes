@@ -305,9 +305,6 @@ func (i *Init) Run(out io.Writer) error {
 	// Get directories to write files to; can be faked if we're dry-running
 	realCertsDir := i.cfg.CertificatesDir
 	certsDirToWriteTo, kubeConfigDir, manifestDir, err := getDirectoriesToUse(i.dryRun, i.cfg.CertificatesDir)
-	// PHASE 2: Generate kubeconfig files for the admin and the kubelet
-
-	err = kubeconfigphase.CreateInitKubeConfigFiles(kubeConfigDir, i.cfg)
 	if err != nil {
 		return err
 	}
