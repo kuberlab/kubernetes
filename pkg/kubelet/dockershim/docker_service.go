@@ -24,12 +24,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/armon/circbuf"
 	"github.com/blang/semver"
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/golang/glog"
 
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubetypes "k8s.io/apimachinery/pkg/types"
 	internalapi "k8s.io/kubernetes/pkg/kubelet/apis/cri"
 	runtimeapi "k8s.io/kubernetes/pkg/kubelet/apis/cri/v1alpha1/runtime"
 	"k8s.io/kubernetes/pkg/kubelet/apis/kubeletconfig"
@@ -45,6 +47,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/util/cache"
 
 	"k8s.io/kubernetes/pkg/kubelet/dockershim/libdocker"
+	"k8s.io/kubernetes/pkg/kubelet/dockershim/metrics"
 )
 
 const (
@@ -147,21 +150,11 @@ var internalLabelKeys []string = []string{containerTypeLabelKey, containerLogPat
 
 // NOTE: Anything passed to DockerService should be eventually handled in another way when we switch to running the shim as a different process.
 func NewDockerService(client libdocker.Interface, podSandboxImage string, streamingConfig *streaming.Config,
-	pluginSettings *NetworkPluginSettings, cgroupsName string, kubeCgroupDriver string, execHandlerName, dockershimRootDir string, disableSharedPID bool) (DockerService, error) {
+	pluginSettings *NetworkPluginSettings, cgroupsName string, kubeCgroupDriver string, dockershimRootDir string, disableSharedPID bool) (DockerService, error) {
 	c := libdocker.NewInstrumentedInterface(client)
 	checkpointHandler, err := NewPersistentCheckpointHandler(dockershimRootDir)
 	if err != nil {
 		return nil, err
-	}
-	var execHandler ExecHandler
-	switch execHandlerName {
-	case "native":
-		execHandler = &NativeExecHandler{}
-	case "nsenter":
-		execHandler = &NsenterExecHandler{}
-	default:
-		glog.Warningf("Unknown Docker exec handler %q; defaulting to native", execHandlerName)
-		execHandler = &NativeExecHandler{}
 	}
 
 	ds := &dockerService{
@@ -170,7 +163,7 @@ func NewDockerService(client libdocker.Interface, podSandboxImage string, stream
 		podSandboxImage: podSandboxImage,
 		streamingRuntime: &streamingRuntime{
 			client:      client,
-			execHandler: execHandler,
+			execHandler: &NativeExecHandler{},
 		},
 		containerManager:  cm.NewContainerManager(cgroupsName, client),
 		checkpointHandler: checkpointHandler,
@@ -229,6 +222,10 @@ func NewDockerService(client libdocker.Interface, podSandboxImage string, stream
 		},
 		versionCacheTTL,
 	)
+
+	// Register prometheus metrics.
+	metrics.Register()
+
 	return ds, nil
 }
 
@@ -258,8 +255,6 @@ type dockerService struct {
 	// cgroup driver used by Docker runtime.
 	cgroupDriver      string
 	checkpointHandler CheckpointHandler
-	// legacyCleanup indicates whether legacy cleanup has finished or not.
-	legacyCleanup legacyCleanupFlag
 	// caches the version of the runtime.
 	// To be compatible with multiple docker versions, we need to perform
 	// version checking for some operations. Use this cache to avoid querying
@@ -332,9 +327,8 @@ func (ds *dockerService) GetPodPortMappings(podSandboxID string) ([]*hostport.Po
 		if err == errors.CheckpointNotFoundError {
 			glog.Warningf("Failed to retrieve checkpoint for sandbox %q: %v", podSandboxID, err)
 			return nil, nil
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
 
 	portMappings := make([]*hostport.PortMapping, 0, len(checkpoint.Data.PortMappings))
@@ -352,7 +346,6 @@ func (ds *dockerService) GetPodPortMappings(podSandboxID string) ([]*hostport.Po
 // Start initializes and starts components in dockerService.
 func (ds *dockerService) Start() error {
 	// Initialize the legacy cleanup flag.
-	ds.LegacyCleanupInit()
 	return ds.containerManager.Start()
 }
 
@@ -522,6 +515,36 @@ func (d *dockerLegacyService) GetContainerLogs(pod *v1.Pod, containerID kubecont
 		RawTerminal:  container.Config.Tty,
 	}
 	return d.client.Logs(containerID.ID, opts, sopts)
+}
+
+// LegacyLogProvider implements the kuberuntime.LegacyLogProvider interface
+type LegacyLogProvider struct {
+	dls DockerLegacyService
+}
+
+func NewLegacyLogProvider(dls DockerLegacyService) LegacyLogProvider {
+	return LegacyLogProvider{dls: dls}
+}
+
+// GetContainerLogTail attempts to read up to MaxContainerTerminationMessageLogLength
+// from the end of the log when docker is configured with a log driver other than json-log.
+// It reads up to MaxContainerTerminationMessageLogLines lines.
+func (l LegacyLogProvider) GetContainerLogTail(uid kubetypes.UID, name, namespace string, containerId kubecontainer.ContainerID) (string, error) {
+	value := int64(kubecontainer.MaxContainerTerminationMessageLogLines)
+	buf, _ := circbuf.NewBuffer(kubecontainer.MaxContainerTerminationMessageLogLength)
+	// Although this is not a full spec pod, dockerLegacyService.GetContainerLogs() currently completely ignores its pod param
+	pod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			UID:       uid,
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	err := l.dls.GetContainerLogs(pod, containerId, &v1.PodLogOptions{TailLines: &value}, buf, buf)
+	if err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 // criSupportedLogDrivers are log drivers supported by native CRI integration.

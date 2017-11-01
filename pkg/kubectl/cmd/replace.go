@@ -92,7 +92,7 @@ func NewCmdReplace(f cmdutil.Factory, out io.Writer) *cobra.Command {
 }
 
 func RunReplace(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args []string, options *resource.FilenameOptions) error {
-	schema, err := f.Validator(cmdutil.GetFlagBool(cmd, "validate"), cmdutil.GetFlagBool(cmd, "openapi-validation"), cmdutil.GetFlagString(cmd, "schema-cache-dir"))
+	schema, err := f.Validator(cmdutil.GetFlagBool(cmd, "validate"))
 	if err != nil {
 		return err
 	}
@@ -120,17 +120,13 @@ func RunReplace(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args []str
 		return fmt.Errorf("--timeout must have --force specified")
 	}
 
-	mapper, _, err := f.UnstructuredObject()
+	mapper, typer, err := f.UnstructuredObject()
 	if err != nil {
 		return err
 	}
 
-	builder, err := f.NewUnstructuredBuilder(true)
-	if err != nil {
-		return err
-	}
-
-	r := builder.
+	r := f.NewBuilder().
+		Unstructured(f.UnstructuredClientForMapping, mapper, typer).
 		Schema(schema).
 		ContinueOnError().
 		NamespaceParam(cmdNamespace).DefaultNamespace().
@@ -171,7 +167,7 @@ func RunReplace(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args []str
 }
 
 func forceReplace(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args []string, shortOutput bool, options *resource.FilenameOptions) error {
-	schema, err := f.Validator(cmdutil.GetFlagBool(cmd, "validate"), cmdutil.GetFlagBool(cmd, "openapi-validation"), cmdutil.GetFlagString(cmd, "schema-cache-dir"))
+	schema, err := f.Validator(cmdutil.GetFlagBool(cmd, "validate"))
 	if err != nil {
 		return err
 	}
@@ -250,12 +246,8 @@ func forceReplace(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args []s
 		})
 	})
 
-	builder, err := f.NewUnstructuredBuilder(true)
-	if err != nil {
-		return err
-	}
-
-	r = builder.
+	r = f.NewBuilder().
+		Unstructured(f.UnstructuredClientForMapping, mapper, typer).
 		Schema(schema).
 		ContinueOnError().
 		NamespaceParam(cmdNamespace).DefaultNamespace().

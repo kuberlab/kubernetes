@@ -17,21 +17,17 @@ filegroup(
     ],
 )
 
-filegroup(
-    name = "sources",
-    srcs = glob([
-        "**/*",
-    ]),
-)
-
 go_library(
     name = "go_default_library",
     srcs = ["doc.go"],
+    importpath = "k8s.io/kubernetes/examples",
 )
 
 go_test(
     name = "go_default_xtest",
     srcs = ["examples_test.go"],
+    importpath = "k8s.io/kubernetes/examples_test",
+    tags = ["manual"],  # this test is broken and examples in-tree is deprecated
     deps = [
         "//pkg/api:go_default_library",
         "//pkg/api/testapi:go_default_library",

@@ -29,21 +29,6 @@ import (
 	"k8s.io/kubernetes/pkg/master/ports"
 )
 
-const (
-	DefaultRootDir = "/var/lib/kubelet"
-
-	AutoDetectCloudProvider = "auto-detect"
-
-	defaultIPTablesMasqueradeBit = 14
-	defaultIPTablesDropBit       = 15
-)
-
-var (
-	zeroDuration = metav1.Duration{}
-	// Refer to [Node Allocatable](https://git.k8s.io/community/contributors/design-proposals/node-allocatable.md) doc for more information.
-	defaultNodeAllocatableEnforcement = []string{"pods"}
-)
-
 func addDefaultingFuncs(scheme *kruntime.Scheme) error {
 	return RegisterDefaults(scheme)
 }
@@ -72,6 +57,9 @@ func SetDefaults_KubeProxyConfiguration(obj *KubeProxyConfiguration) {
 	if obj.IPTables.SyncPeriod.Duration == 0 {
 		obj.IPTables.SyncPeriod = metav1.Duration{Duration: 30 * time.Second}
 	}
+	if obj.IPVS.SyncPeriod.Duration == 0 {
+		obj.IPVS.SyncPeriod = metav1.Duration{Duration: 30 * time.Second}
+	}
 	zero := metav1.Duration{}
 	if obj.UDPIdleTimeout == zero {
 		obj.UDPIdleTimeout = metav1.Duration{Duration: 250 * time.Millisecond}
@@ -96,7 +84,7 @@ func SetDefaults_KubeProxyConfiguration(obj *KubeProxyConfiguration) {
 	if obj.Conntrack.TCPCloseWaitTimeout == zero {
 		// See https://github.com/kubernetes/kubernetes/issues/32551.
 		//
-		// CLOSE_WAIT conntrack state occurs when the the Linux kernel
+		// CLOSE_WAIT conntrack state occurs when the Linux kernel
 		// sees a FIN from the remote server. Note: this is a half-close
 		// condition that persists as long as the local side keeps the
 		// socket open. The condition is rare as it is typical in most

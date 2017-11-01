@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
@@ -139,18 +140,29 @@ func (o *ImageOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []st
 	}
 
 	includeUninitialized := cmdutil.ShouldIncludeUninitialized(cmd, false)
-	builder := f.NewBuilder(!o.Local).
+	builder := f.NewBuilder().
 		ContinueOnError().
 		NamespaceParam(cmdNamespace).DefaultNamespace().
 		FilenameParam(enforceNamespace, &o.FilenameOptions).
 		IncludeUninitialized(includeUninitialized).
 		Flatten()
+
 	if !o.Local {
 		builder = builder.
 			SelectorParam(o.Selector).
 			ResourceTypeOrNameArgs(o.All, o.Resources...).
 			Latest()
+	} else {
+		// if a --local flag was provided, and a resource was specified in the form
+		// <resource>/<name>, fail immediately as --local cannot query the api server
+		// for the specified resource.
+		if len(o.Resources) > 0 {
+			return resource.LocalResourceError
+		}
+
+		builder = builder.Local(f.ClientForMapping)
 	}
+
 	o.Infos, err = builder.Do().Infos()
 	if err != nil {
 		return err
@@ -214,7 +226,9 @@ func (o *ImageOptions) Run() error {
 			return nil
 		})
 		if transformed && err == nil {
-			return runtime.Encode(o.Encoder, info.Object)
+			// TODO: switch UpdatePodSpecForObject to work on v1.PodSpec, use info.VersionedObject, and avoid conversion completely
+			versionedEncoder := legacyscheme.Codecs.EncoderForVersion(o.Encoder, info.Mapping.GroupVersionKind.GroupVersion())
+			return runtime.Encode(versionedEncoder, info.Object)
 		}
 		return nil, err
 	})

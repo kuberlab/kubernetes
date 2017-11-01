@@ -46,6 +46,7 @@ import (
 	"k8s.io/kubernetes/pkg/printers"
 )
 
+// NewCmdToken returns cobra.Command for token management
 func NewCmdToken(out io.Writer, errW io.Writer) *cobra.Command {
 
 	var kubeConfigFile string
@@ -69,9 +70,9 @@ func NewCmdToken(out io.Writer, errW io.Writer) *cobra.Command {
 			   and the latter is the Token Secret, which must be kept private at all circumstances.
 			 - The name of the Secret must be named "bootstrap-token-(token-id)".
 
-			You can read more about Bootstrap Tokens in this proposal:
+			You can read more about Bootstrap Tokens here:
 
-			  https://git.k8s.io/community/contributors/design-proposals/bootstrap-discovery.md
+			  https://kubernetes.io/docs/admin/bootstrap-tokens/
 		`),
 
 		// Without this callback, if a user runs just the "token"
@@ -110,12 +111,6 @@ func NewCmdToken(out io.Writer, errW io.Writer) *cobra.Command {
 			client, err := getClientset(kubeConfigFile, dryRun)
 			kubeadmutil.CheckErr(err)
 
-			// TODO: remove this warning in 1.9
-			if !tokenCmd.Flags().Lookup("ttl").Changed {
-				// sending this output to stderr s
-				fmt.Fprintln(errW, "[kubeadm] WARNING: starting in 1.8, tokens expire after 24 hours by default (if you require a non-expiring token use --ttl 0)")
-			}
-
 			err = RunCreateToken(out, client, token, tokenDuration, usages, extraGroups, description)
 			kubeadmutil.CheckErr(err)
 		},
@@ -125,7 +120,7 @@ func NewCmdToken(out io.Writer, errW io.Writer) *cobra.Command {
 	createCmd.Flags().StringSliceVar(&usages,
 		"usages", kubeadmconstants.DefaultTokenUsages, "The ways in which this token can be used. Valid options: [signing,authentication].")
 	createCmd.Flags().StringSliceVar(&extraGroups,
-		"groups", []string{},
+		"groups", []string{kubeadmconstants.NodeBootstrapTokenAuthGroup},
 		fmt.Sprintf("Extra groups that this token will authenticate as when used for authentication. Must match %q.", bootstrapapi.BootstrapGroupPattern))
 	createCmd.Flags().StringVar(&description,
 		"description", "", "A human friendly description of how this token is used.")
@@ -174,6 +169,7 @@ func NewCmdToken(out io.Writer, errW io.Writer) *cobra.Command {
 	return tokenCmd
 }
 
+// NewCmdTokenGenerate returns cobra.Command to generate new token
 func NewCmdTokenGenerate(out io.Writer) *cobra.Command {
 	return &cobra.Command{
 		Use:   "generate",
@@ -182,7 +178,7 @@ func NewCmdTokenGenerate(out io.Writer) *cobra.Command {
 			This command will print out a randomly-generated bootstrap token that can be used with
 			the "init" and "join" commands.
 
-			You don't have to use this command in order to generate a token, you can do so
+			You don't have to use this command in order to generate a token. You can do so
 			yourself as long as it's in the format "[a-z0-9]{6}.[a-z0-9]{16}". This
 			command is provided for convenience to generate tokens in that format.
 
@@ -266,14 +262,14 @@ func RunListTokens(out io.Writer, errW io.Writer, client clientset.Interface) er
 	w := tabwriter.NewWriter(out, 10, 4, 3, ' ', 0)
 	fmt.Fprintln(w, "TOKEN\tTTL\tEXPIRES\tUSAGES\tDESCRIPTION\tEXTRA GROUPS")
 	for _, secret := range secrets.Items {
-		tokenId := getSecretString(&secret, bootstrapapi.BootstrapTokenIDKey)
-		if len(tokenId) == 0 {
+		tokenID := getSecretString(&secret, bootstrapapi.BootstrapTokenIDKey)
+		if len(tokenID) == 0 {
 			fmt.Fprintf(errW, "bootstrap token has no token-id data: %s\n", secret.Name)
 			continue
 		}
 
 		// enforce the right naming convention
-		if secret.Name != fmt.Sprintf("%s%s", bootstrapapi.BootstrapTokenSecretPrefix, tokenId) {
+		if secret.Name != fmt.Sprintf("%s%s", bootstrapapi.BootstrapTokenSecretPrefix, tokenID) {
 			fmt.Fprintf(errW, "bootstrap token name is not of the form '%s(token-id)': %s\n", bootstrapapi.BootstrapTokenSecretPrefix, secret.Name)
 			continue
 		}
@@ -283,7 +279,7 @@ func RunListTokens(out io.Writer, errW io.Writer, client clientset.Interface) er
 			fmt.Fprintf(errW, "bootstrap token has no token-secret data: %s\n", secret.Name)
 			continue
 		}
-		td := &kubeadmapi.TokenDiscovery{ID: tokenId, Secret: tokenSecret}
+		td := &kubeadmapi.TokenDiscovery{ID: tokenID, Secret: tokenSecret}
 
 		// Expiration time is optional, if not specified this implies the token
 		// never expires.
@@ -334,20 +330,20 @@ func RunListTokens(out io.Writer, errW io.Writer, client clientset.Interface) er
 }
 
 // RunDeleteToken removes a bootstrap token from the server.
-func RunDeleteToken(out io.Writer, client clientset.Interface, tokenIdOrToken string) error {
+func RunDeleteToken(out io.Writer, client clientset.Interface, tokenIDOrToken string) error {
 	// Assume the given first argument is a token id and try to parse it
-	tokenId := tokenIdOrToken
-	if err := tokenutil.ParseTokenID(tokenIdOrToken); err != nil {
-		if tokenId, _, err = tokenutil.ParseToken(tokenIdOrToken); err != nil {
-			return fmt.Errorf("given token or token id %q didn't match pattern [%q] or [%q]", tokenIdOrToken, tokenutil.TokenIDRegexpString, tokenutil.TokenRegexpString)
+	tokenID := tokenIDOrToken
+	if err := tokenutil.ParseTokenID(tokenIDOrToken); err != nil {
+		if tokenID, _, err = tokenutil.ParseToken(tokenIDOrToken); err != nil {
+			return fmt.Errorf("given token or token id %q didn't match pattern [%q] or [%q]", tokenIDOrToken, tokenutil.TokenIDRegexpString, tokenutil.TokenRegexpString)
 		}
 	}
 
-	tokenSecretName := fmt.Sprintf("%s%s", bootstrapapi.BootstrapTokenSecretPrefix, tokenId)
+	tokenSecretName := fmt.Sprintf("%s%s", bootstrapapi.BootstrapTokenSecretPrefix, tokenID)
 	if err := client.CoreV1().Secrets(metav1.NamespaceSystem).Delete(tokenSecretName, nil); err != nil {
 		return fmt.Errorf("failed to delete bootstrap token [%v]", err)
 	}
-	fmt.Fprintf(out, "bootstrap token with id %q deleted\n", tokenId)
+	fmt.Fprintf(out, "bootstrap token with id %q deleted\n", tokenID)
 	return nil
 }
 

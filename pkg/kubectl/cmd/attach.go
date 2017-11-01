@@ -31,6 +31,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	coreclient "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
@@ -142,7 +143,7 @@ func (p *AttachOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, argsIn [
 		return cmdutil.UsageErrorf(cmd, err.Error())
 	}
 
-	builder := f.NewBuilder(true).
+	builder := f.NewBuilder().
 		NamespaceParam(namespace).DefaultNamespace()
 
 	switch len(argsIn) {
@@ -278,7 +279,7 @@ func (p *AttachOptions) Run() error {
 			Stdout:    p.Out != nil,
 			Stderr:    p.Err != nil,
 			TTY:       t.Raw,
-		}, api.ParameterCodec)
+		}, legacyscheme.ParameterCodec)
 
 		return p.Attach.Attach("POST", req.URL(), p.Config, p.In, p.Out, p.Err, t.Raw, sizeQueue)
 	}

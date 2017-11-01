@@ -153,6 +153,16 @@
         "code": 200,
         "message": "OK",
         "responseModel": "v1beta2.ControllerRevision"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1beta2.ControllerRevision"
+       },
+       {
+        "code": 202,
+        "message": "Accepted",
+        "responseModel": "v1beta2.ControllerRevision"
        }
       ],
       "produces": [
@@ -490,6 +500,11 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1beta2.ControllerRevision"
+       },
+       {
+        "code": 201,
+        "message": "Created",
         "responseModel": "v1beta2.ControllerRevision"
        }
       ],
@@ -1110,6 +1125,16 @@
         "code": 200,
         "message": "OK",
         "responseModel": "v1beta2.DaemonSet"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1beta2.DaemonSet"
+       },
+       {
+        "code": 202,
+        "message": "Accepted",
+        "responseModel": "v1beta2.DaemonSet"
        }
       ],
       "produces": [
@@ -1447,6 +1472,11 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1beta2.DaemonSet"
+       },
+       {
+        "code": 201,
+        "message": "Created",
         "responseModel": "v1beta2.DaemonSet"
        }
       ],
@@ -2017,6 +2047,11 @@
         "code": 200,
         "message": "OK",
         "responseModel": "v1beta2.DaemonSet"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1beta2.DaemonSet"
        }
       ],
       "produces": [
@@ -2231,6 +2266,16 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1beta2.Deployment"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1beta2.Deployment"
+       },
+       {
+        "code": 202,
+        "message": "Accepted",
         "responseModel": "v1beta2.Deployment"
        }
       ],
@@ -2569,6 +2614,11 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1beta2.Deployment"
+       },
+       {
+        "code": 201,
+        "message": "Created",
         "responseModel": "v1beta2.Deployment"
        }
       ],
@@ -3139,6 +3189,11 @@
         "code": 200,
         "message": "OK",
         "responseModel": "v1beta2.Scale"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1beta2.Scale"
        }
       ],
       "produces": [
@@ -3303,6 +3358,11 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1beta2.Deployment"
+       },
+       {
+        "code": 201,
+        "message": "Created",
         "responseModel": "v1beta2.Deployment"
        }
       ],
@@ -3518,6 +3578,16 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1beta2.ReplicaSet"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1beta2.ReplicaSet"
+       },
+       {
+        "code": 202,
+        "message": "Accepted",
         "responseModel": "v1beta2.ReplicaSet"
        }
       ],
@@ -3856,6 +3926,11 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1beta2.ReplicaSet"
+       },
+       {
+        "code": 201,
+        "message": "Created",
         "responseModel": "v1beta2.ReplicaSet"
        }
       ],
@@ -4426,6 +4501,11 @@
         "code": 200,
         "message": "OK",
         "responseModel": "v1beta2.Scale"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1beta2.Scale"
        }
       ],
       "produces": [
@@ -4590,6 +4670,11 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1beta2.ReplicaSet"
+       },
+       {
+        "code": 201,
+        "message": "Created",
         "responseModel": "v1beta2.ReplicaSet"
        }
       ],
@@ -4805,6 +4890,16 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1beta2.StatefulSet"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1beta2.StatefulSet"
+       },
+       {
+        "code": 202,
+        "message": "Accepted",
         "responseModel": "v1beta2.StatefulSet"
        }
       ],
@@ -5143,6 +5238,11 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1beta2.StatefulSet"
+       },
+       {
+        "code": 201,
+        "message": "Created",
         "responseModel": "v1beta2.StatefulSet"
        }
       ],
@@ -5713,6 +5813,11 @@
         "code": 200,
         "message": "OK",
         "responseModel": "v1beta2.Scale"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1beta2.Scale"
        }
       ],
       "produces": [
@@ -5877,6 +5982,11 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1beta2.StatefulSet"
+       },
+       {
+        "code": 201,
+        "message": "Created",
         "responseModel": "v1beta2.StatefulSet"
        }
       ],
@@ -7428,7 +7538,7 @@
      },
      "kind": {
       "$ref": "v1.AzureDataDiskKind",
-      "description": "Expected values Shared: mulitple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared"
+      "description": "Expected values Shared: multiple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared"
      }
     }
    },
@@ -7599,15 +7709,15 @@
      },
      "protectionDomain": {
       "type": "string",
-      "description": "The name of the Protection Domain for the configured storage (defaults to \"default\")."
+      "description": "The name of the ScaleIO Protection Domain for the configured storage."
      },
      "storagePool": {
       "type": "string",
-      "description": "The Storage Pool associated with the protection domain (defaults to \"default\")."
+      "description": "The ScaleIO Storage Pool associated with the protection domain."
      },
      "storageMode": {
       "type": "string",
-      "description": "Indicates whether the storage for a volume should be thick or thin (defaults to \"thin\")."
+      "description": "Indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned."
      },
      "volumeName": {
       "type": "string",
@@ -7740,7 +7850,7 @@
      },
      "securityContext": {
       "$ref": "v1.SecurityContext",
-      "description": "Security options the pod should run with. More info: https://kubernetes.io/docs/concepts/policy/security-context/ More info: https://git.k8s.io/community/contributors/design-proposals/security_context.md"
+      "description": "Security options the pod should run with. More info: https://kubernetes.io/docs/concepts/policy/security-context/ More info: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/"
      },
      "stdin": {
       "type": "boolean",
@@ -8366,7 +8476,7 @@
    },
    "v1.PodAffinityTerm": {
     "id": "v1.PodAffinityTerm",
-    "description": "Defines a set of pods (namely those matching the labelSelector relative to the given namespace(s)) that this pod should be co-located (affinity) or not co-located (anti-affinity) with, where co-located is defined as running on a node whose value of the label with key \u003ctopologyKey\u003e tches that of any node on which a pod of the set of pods is running",
+    "description": "Defines a set of pods (namely those matching the labelSelector relative to the given namespace(s)) that this pod should be co-located (affinity) or not co-located (anti-affinity) with, where co-located is defined as running on a node whose value of the label with key \u003ctopologyKey\u003e matches that of any node on which a pod of the set of pods is running",
     "properties": {
      "labelSelector": {
       "$ref": "v1.LabelSelector",
@@ -8847,7 +8957,7 @@
    },
    "v1beta2.ReplicaSet": {
     "id": "v1beta2.ReplicaSet",
-    "description": "ReplicaSet represents the configuration of a ReplicaSet.",
+    "description": "ReplicaSet ensures that a specified number of pod replicas are running at any given time.",
     "properties": {
      "kind": {
       "type": "string",

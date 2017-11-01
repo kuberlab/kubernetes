@@ -41,7 +41,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/kubernetes/federation/apis/federation"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/events"
 	"k8s.io/kubernetes/pkg/api/helper"
@@ -361,14 +360,6 @@ func AddHandlers(h printers.PrintHandler) {
 	h.TableHandler(podSecurityPolicyColumnDefinitions, printPodSecurityPolicy)
 	h.TableHandler(podSecurityPolicyColumnDefinitions, printPodSecurityPolicyList)
 
-	clusterColumnDefinitions := []metav1alpha1.TableColumnDefinition{
-		{Name: "Name", Type: "string", Format: "name", Description: metav1.ObjectMeta{}.SwaggerDoc()["name"]},
-		{Name: "Status", Type: "string", Description: "Status of the cluster"},
-		{Name: "Age", Type: "string", Description: metav1.ObjectMeta{}.SwaggerDoc()["creationTimestamp"]},
-	}
-	h.TableHandler(clusterColumnDefinitions, printCluster)
-	h.TableHandler(clusterColumnDefinitions, printClusterList)
-
 	networkPolicyColumnDefinitioins := []metav1alpha1.TableColumnDefinition{
 		{Name: "Name", Type: "string", Format: "name", Description: metav1.ObjectMeta{}.SwaggerDoc()["name"]},
 		{Name: "Pod-Selector", Type: "string", Description: extensionsv1beta1.NetworkPolicySpec{}.SwaggerDoc()["podSelector"]},
@@ -411,6 +402,7 @@ func AddHandlers(h printers.PrintHandler) {
 	storageClassColumnDefinitions := []metav1alpha1.TableColumnDefinition{
 		{Name: "Name", Type: "string", Format: "name", Description: metav1.ObjectMeta{}.SwaggerDoc()["name"]},
 		{Name: "Provisioner", Type: "string", Description: storagev1.StorageClass{}.SwaggerDoc()["provisioner"]},
+		{Name: "Age", Type: "string", Description: metav1.ObjectMeta{}.SwaggerDoc()["creationTimestamp"]},
 	}
 
 	h.TableHandler(storageClassColumnDefinitions, printStorageClass)
@@ -746,38 +738,6 @@ func printReplicaSetList(list *extensions.ReplicaSetList, options printers.Print
 	return rows, nil
 }
 
-func printCluster(obj *federation.Cluster, options printers.PrintOptions) ([]metav1alpha1.TableRow, error) {
-	row := metav1alpha1.TableRow{
-		Object: runtime.RawExtension{Object: obj},
-	}
-
-	var statuses []string
-	for _, condition := range obj.Status.Conditions {
-		if condition.Status == api.ConditionTrue {
-			statuses = append(statuses, string(condition.Type))
-		} else {
-			statuses = append(statuses, "Not"+string(condition.Type))
-		}
-	}
-	if len(statuses) == 0 {
-		statuses = append(statuses, "Unknown")
-	}
-	row.Cells = append(row.Cells, obj.Name, strings.Join(statuses, ","), translateTimestamp(obj.CreationTimestamp))
-	return []metav1alpha1.TableRow{row}, nil
-}
-
-func printClusterList(list *federation.ClusterList, options printers.PrintOptions) ([]metav1alpha1.TableRow, error) {
-	rows := make([]metav1alpha1.TableRow, 0, len(list.Items))
-	for i := range list.Items {
-		r, err := printCluster(&list.Items[i], options)
-		if err != nil {
-			return nil, err
-		}
-		rows = append(rows, r...)
-	}
-	return rows, nil
-}
-
 func printJob(obj *batch.Job, options printers.PrintOptions) ([]metav1alpha1.TableRow, error) {
 	row := metav1alpha1.TableRow{
 		Object: runtime.RawExtension{Object: obj},
@@ -817,10 +777,10 @@ func printCronJob(obj *batch.CronJob, options printers.PrintOptions) ([]metav1al
 
 	lastScheduleTime := "<none>"
 	if obj.Status.LastScheduleTime != nil {
-		lastScheduleTime = obj.Status.LastScheduleTime.Time.Format(time.RFC1123Z)
+		lastScheduleTime = translateTimestamp(*obj.Status.LastScheduleTime)
 	}
 
-	row.Cells = append(row.Cells, obj.Name, obj.Spec.Schedule, printBoolPtr(obj.Spec.Suspend), len(obj.Status.Active), lastScheduleTime)
+	row.Cells = append(row.Cells, obj.Name, obj.Spec.Schedule, printBoolPtr(obj.Spec.Suspend), len(obj.Status.Active), lastScheduleTime, translateTimestamp(obj.CreationTimestamp))
 	if options.Wide {
 		names, images := layoutContainerCells(obj.Spec.JobTemplate.Spec.Template.Spec.Containers)
 		row.Cells = append(row.Cells, names, images, metav1.FormatLabelSelector(obj.Spec.JobTemplate.Spec.Selector))
@@ -1707,7 +1667,7 @@ func printStorageClass(obj *storage.StorageClass, options printers.PrintOptions)
 		name += " (default)"
 	}
 	provtype := obj.Provisioner
-	row.Cells = append(row.Cells, name, provtype)
+	row.Cells = append(row.Cells, name, provtype, translateTimestamp(obj.CreationTimestamp))
 
 	return []metav1alpha1.TableRow{row}, nil
 }
@@ -1748,10 +1708,7 @@ func layoutContainers(containers []api.Container, w io.Writer) error {
 		}
 	}
 	_, err := fmt.Fprintf(w, "\t%s\t%s", namesBuffer.String(), imagesBuffer.String())
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // Lay out all the containers on one line if use wide output.

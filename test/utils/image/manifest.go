@@ -69,6 +69,7 @@ var (
 	Nettest            = ImageConfig{e2eRegistry, "nettest", "1.0"}
 	NginxSlim          = ImageConfig{gcRegistry, "nginx-slim", "0.20"}
 	NginxSlimNew       = ImageConfig{gcRegistry, "nginx-slim", "0.21"}
+	Nonewprivs         = ImageConfig{e2eRegistry, "nonewprivs", "1.0"}
 	NoSnatTest         = ImageConfig{e2eRegistry, "no-snat-test", "1.0"}
 	NoSnatTestProxy    = ImageConfig{e2eRegistry, "no-snat-test-proxy", "1.0"}
 	NWayHTTP           = ImageConfig{e2eRegistry, "n-way-http", "1.0"}
@@ -84,22 +85,4 @@ var (
 
 func GetE2EImage(image ImageConfig) string {
 	return fmt.Sprintf("%s/%s-%s:%s", image.registry, image.name, runtime.GOARCH, image.version)
-}
-
-// GetBusyboxImage returns multi-arch busybox docker image
-func GetBusyBoxImage() string {
-	switch arch := runtime.GOARCH; arch {
-	case "amd64":
-		return "busybox"
-	case "arm":
-		return "arm32v6/busybox"
-	case "arm64":
-		return "arm64v8/busybox"
-	case "ppc64le":
-		return "ppc64le/busybox"
-	case "s390x":
-		return "s390x/busybox"
-	default:
-		return ""
-	}
 }

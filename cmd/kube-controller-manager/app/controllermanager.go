@@ -41,7 +41,6 @@ import (
 
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/kubernetes"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -53,7 +52,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/kubernetes/cmd/kube-controller-manager/app/options"
-	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 	"k8s.io/kubernetes/pkg/controller"
 	serviceaccountcontroller "k8s.io/kubernetes/pkg/controller/serviceaccount"
@@ -132,7 +131,7 @@ func Run(s *options.CMServer) error {
 		}
 		var clientBuilder controller.ControllerClientBuilder
 		if s.UseServiceAccountCredentials {
-			if len(s.ServiceAccountKeyFile) > 0 {
+			if len(s.ServiceAccountKeyFile) == 0 {
 				// It's possible another controller process is creating the tokens for us.
 				// If one isn't, we'll timeout and exit when our client builder is unable to create the tokens.
 				glog.Warningf("--use-service-account-credentials was specified without providing a --service-account-private-key-file")
@@ -225,7 +224,7 @@ func createRecorder(kubeClient *clientset.Clientset) record.EventRecorder {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.CoreV1().RESTClient()).Events("")})
-	return eventBroadcaster.NewRecorder(api.Scheme, v1.EventSource{Component: "controller-manager"})
+	return eventBroadcaster.NewRecorder(legacyscheme.Scheme, v1.EventSource{Component: "controller-manager"})
 }
 
 func createClients(s *options.CMServer) (*clientset.Clientset, *clientset.Clientset, *restclient.Config, error) {
@@ -242,7 +241,7 @@ func createClients(s *options.CMServer) (*clientset.Clientset, *clientset.Client
 	if err != nil {
 		glog.Fatalf("Invalid API configuration: %v", err)
 	}
-	leaderElectionClient := kubernetes.NewForConfigOrDie(restclient.AddUserAgent(kubeconfig, "leader-election"))
+	leaderElectionClient := clientset.NewForConfigOrDie(restclient.AddUserAgent(kubeconfig, "leader-election"))
 	return kubeClient, leaderElectionClient, kubeconfig, nil
 }
 
@@ -349,6 +348,7 @@ func NewControllerInitializers() map[string]InitFunc {
 	controllers["cronjob"] = startCronJobController
 	controllers["csrsigning"] = startCSRSigningController
 	controllers["csrapproving"] = startCSRApprovingController
+	controllers["csrcleaner"] = startCSRCleanerController
 	controllers["ttl"] = startTTLController
 	controllers["bootstrapsigner"] = startBootstrapSignerController
 	controllers["tokencleaner"] = startTokenCleanerController

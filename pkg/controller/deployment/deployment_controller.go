@@ -101,10 +101,10 @@ func NewDeploymentController(dInformer extensionsinformers.DeploymentInformer, r
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
 	// TODO: remove the wrapper when every clients have moved to use the clientset.
-	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(client.Core().RESTClient()).Events("")})
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(client.CoreV1().RESTClient()).Events("")})
 
-	if client != nil && client.Core().RESTClient().GetRateLimiter() != nil {
-		metrics.RegisterMetricAndTrackRateLimiterUsage("deployment_controller", client.Core().RESTClient().GetRateLimiter())
+	if client != nil && client.CoreV1().RESTClient().GetRateLimiter() != nil {
+		metrics.RegisterMetricAndTrackRateLimiterUsage("deployment_controller", client.CoreV1().RESTClient().GetRateLimiter())
 	}
 	dc := &DeploymentController{
 		client:        client,
@@ -560,7 +560,7 @@ func (dc *DeploymentController) syncDeployment(key string) error {
 	startTime := time.Now()
 	glog.V(4).Infof("Started syncing deployment %q (%v)", key, startTime)
 	defer func() {
-		glog.V(4).Infof("Finished syncing deployment %q (%v)", key, time.Now().Sub(startTime))
+		glog.V(4).Infof("Finished syncing deployment %q (%v)", key, time.Since(startTime))
 	}()
 
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)

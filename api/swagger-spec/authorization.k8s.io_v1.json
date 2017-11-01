@@ -48,6 +48,16 @@
         "code": 200,
         "message": "OK",
         "responseModel": "v1.LocalSubjectAccessReview"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1.LocalSubjectAccessReview"
+       },
+       {
+        "code": 202,
+        "message": "Accepted",
+        "responseModel": "v1.LocalSubjectAccessReview"
        }
       ],
       "produces": [
@@ -92,6 +102,16 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1.SelfSubjectAccessReview"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1.SelfSubjectAccessReview"
+       },
+       {
+        "code": 202,
+        "message": "Accepted",
         "responseModel": "v1.SelfSubjectAccessReview"
        }
       ],
@@ -138,6 +158,16 @@
         "code": 200,
         "message": "OK",
         "responseModel": "v1.SelfSubjectRulesReview"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1.SelfSubjectRulesReview"
+       },
+       {
+        "code": 202,
+        "message": "Accepted",
+        "responseModel": "v1.SelfSubjectRulesReview"
        }
       ],
       "produces": [
@@ -182,6 +212,16 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1.SubjectAccessReview"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1.SubjectAccessReview"
+       },
+       {
+        "code": 202,
+        "message": "Accepted",
         "responseModel": "v1.SubjectAccessReview"
        }
       ],
@@ -745,7 +785,7 @@
       "items": {
        "type": "string"
       },
-      "description": "Resources is a list of resources this rule applies to.  ResourceAll represents all resources.  \"*\" means all."
+      "description": "Resources is a list of resources this rule applies to.  \"*\" means all in the specified apiGroups.\n \"*/foo\" represents the subresource 'foo' for all resources in the specified apiGroups."
      },
      "resourceNames": {
       "type": "array",

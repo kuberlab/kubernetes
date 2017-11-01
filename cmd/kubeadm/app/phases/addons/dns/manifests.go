@@ -17,9 +17,9 @@ limitations under the License.
 package dns
 
 const (
-	// v170AndAboveKubeDNSDeployment is the kube-dns Deployment manifest for the kube-dns manifest for v1.7+
-	v170AndAboveKubeDNSDeployment = `
-apiVersion: extensions/v1beta1
+	// v180AndAboveKubeDNSDeployment is the kube-dns Deployment manifest for the kube-dns manifest for v1.7+
+	v180AndAboveKubeDNSDeployment = `
+apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
   name: kube-dns
@@ -121,10 +121,11 @@ spec:
         - --
         - -k
         - --cache-size=1000
+        - --no-negcache
         - --log-facility=-
-        - --server=/{{ .DNSDomain }}/127.0.0.1#10053
-        - --server=/in-addr.arpa/127.0.0.1#10053
-        - --server=/ip6.arpa/127.0.0.1#10053
+        - --server=/{{ .DNSDomain }}/{{ .DNSBindAddr }}#10053
+        - --server=/in-addr.arpa/{{ .DNSBindAddr }}#10053
+        - --server=/ip6.arpa/{{ .DNSBindAddr }}#10053
         ports:
         - containerPort: 53
           name: dns
@@ -155,8 +156,8 @@ spec:
         args:
         - --v=2
         - --logtostderr
-        - --probe=kubedns,127.0.0.1:10053,kubernetes.default.svc.{{ .DNSDomain }},5,A
-        - --probe=dnsmasq,127.0.0.1:53,kubernetes.default.svc.{{ .DNSDomain }},5,A
+        - --probe=kubedns,{{ .DNSBindAddr }}:10053,kubernetes.default.svc.{{ .DNSDomain }},5,{{ .DNSProbeType }}
+        - --probe=dnsmasq,{{ .DNSBindAddr }}:53,kubernetes.default.svc.{{ .DNSDomain }},5,{{ .DNSProbeType }}
         ports:
         - containerPort: 10054
           name: metrics

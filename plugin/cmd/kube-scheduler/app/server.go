@@ -34,8 +34,9 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/pkg/util/configz"
+	"k8s.io/kubernetes/pkg/version"
 	"k8s.io/kubernetes/plugin/cmd/kube-scheduler/app/options"
-	_ "k8s.io/kubernetes/plugin/pkg/scheduler/algorithmprovider"
+	"k8s.io/kubernetes/plugin/pkg/scheduler/algorithmprovider"
 	"k8s.io/kubernetes/plugin/pkg/scheduler/factory"
 
 	"github.com/golang/glog"
@@ -66,20 +67,26 @@ through the API as necessary.`,
 
 // Run runs the specified SchedulerServer.  This should never exit.
 func Run(s *options.SchedulerServer) error {
-	kubecli, err := createClient(s)
+	// To help debugging, immediately log version
+	glog.Infof("Version: %+v", version.Get())
+
+	kubeClient, leaderElectionClient, err := createClients(s)
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %v", err)
 	}
 
-	recorder := createRecorder(kubecli, s)
+	recorder := createRecorder(kubeClient, s)
 
-	informerFactory := informers.NewSharedInformerFactory(kubecli, 0)
+	informerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 	// cache only non-terminal pods
-	podInformer := factory.NewPodInformer(kubecli, 0)
+
+	podInformer := factory.NewPodInformer(kubeClient, 0, s.SchedulerName)
+	// Apply algorithms based on feature gates.
+	algorithmprovider.ApplyFeatureGates()
 
 	sched, err := CreateScheduler(
 		s,
-		kubecli,
+		kubeClient,
 		informerFactory.Core().V1().Nodes(),
 		podInformer,
 		informerFactory.Core().V1().PersistentVolumes(),
@@ -88,6 +95,7 @@ func Run(s *options.SchedulerServer) error {
 		informerFactory.Extensions().V1beta1().ReplicaSets(),
 		informerFactory.Apps().V1beta1().StatefulSets(),
 		informerFactory.Core().V1().Services(),
+		informerFactory.Policy().V1beta1().PodDisruptionBudgets(),
 		recorder,
 	)
 	if err != nil {
@@ -124,7 +132,7 @@ func Run(s *options.SchedulerServer) error {
 	rl, err := resourcelock.New(s.LeaderElection.ResourceLock,
 		s.LockObjectNamespace,
 		s.LockObjectName,
-		kubecli.CoreV1(),
+		leaderElectionClient.CoreV1(),
 		resourcelock.ResourceLockConfig{
 			Identity:      id,
 			EventRecorder: recorder,

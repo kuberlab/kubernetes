@@ -26,10 +26,10 @@ import (
 	certsphase "k8s.io/kubernetes/cmd/kubeadm/app/phases/certs"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	configutil "k8s.io/kubernetes/cmd/kubeadm/app/util/config"
-	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
 )
 
-// NewCmdCerts return main command for certs phase
+// NewCmdCerts returns main command for certs phase
 func NewCmdCerts() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "certs",
@@ -38,16 +38,24 @@ func NewCmdCerts() *cobra.Command {
 		RunE:    cmdutil.SubCmdRunE("certs"),
 	}
 
-	cmd.AddCommand(getCertsSubCommands()...)
+	cmd.AddCommand(getCertsSubCommands("")...)
 	return cmd
 }
 
 // getCertsSubCommands returns sub commands for certs phase
-func getCertsSubCommands() []*cobra.Command {
+func getCertsSubCommands(defaultKubernetesVersion string) []*cobra.Command {
 
 	cfg := &kubeadmapiext.MasterConfiguration{}
+
+	// This is used for unit testing only...
+	// If we wouldn't set this to something, the code would dynamically look up the version from the internet
+	// By setting this explicitely for tests workarounds that
+	if defaultKubernetesVersion != "" {
+		cfg.KubernetesVersion = defaultKubernetesVersion
+	}
+
 	// Default values for the cobra help text
-	api.Scheme.Default(cfg)
+	legacyscheme.Scheme.Default(cfg)
 
 	var cfgPath string
 	var subCmds []*cobra.Command

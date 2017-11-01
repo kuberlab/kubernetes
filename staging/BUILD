@@ -6,17 +6,6 @@ load(
     "go_library",
 )
 
-go_binary(
-    name = "staging",
-    library = ":go_default_library",
-)
-
-go_library(
-    name = "go_default_library",
-    srcs = ["godeps-json-updater.go"],
-    deps = ["//vendor/github.com/spf13/pflag:go_default_library"],
-)
-
 filegroup(
     name = "package-srcs",
     srcs = glob(["**"]),
@@ -30,6 +19,7 @@ filegroup(
         ":package-srcs",
         "//staging/src/k8s.io/api/admission/v1alpha1:all-srcs",
         "//staging/src/k8s.io/api/admissionregistration/v1alpha1:all-srcs",
+        "//staging/src/k8s.io/api/apps/v1:all-srcs",
         "//staging/src/k8s.io/api/apps/v1beta1:all-srcs",
         "//staging/src/k8s.io/api/apps/v1beta2:all-srcs",
         "//staging/src/k8s.io/api/authentication/v1:all-srcs",
@@ -148,6 +138,7 @@ filegroup(
         "//staging/src/k8s.io/client-go/informers:all-srcs",
         "//staging/src/k8s.io/client-go/kubernetes:all-srcs",
         "//staging/src/k8s.io/client-go/listers/admissionregistration/v1alpha1:all-srcs",
+        "//staging/src/k8s.io/client-go/listers/apps/v1:all-srcs",
         "//staging/src/k8s.io/client-go/listers/apps/v1beta1:all-srcs",
         "//staging/src/k8s.io/client-go/listers/apps/v1beta2:all-srcs",
         "//staging/src/k8s.io/client-go/listers/authentication/v1:all-srcs",
@@ -176,6 +167,7 @@ filegroup(
         "//staging/src/k8s.io/client-go/plugin/pkg/auth/authenticator/token/oidc/testing:all-srcs",
         "//staging/src/k8s.io/client-go/plugin/pkg/client/auth:all-srcs",
         "//staging/src/k8s.io/client-go/rest:all-srcs",
+        "//staging/src/k8s.io/client-go/scale:all-srcs",
         "//staging/src/k8s.io/client-go/testing:all-srcs",
         "//staging/src/k8s.io/client-go/third_party/forked/golang/template:all-srcs",
         "//staging/src/k8s.io/client-go/tools/auth:all-srcs",
@@ -189,7 +181,9 @@ filegroup(
         "//staging/src/k8s.io/client-go/tools/reference:all-srcs",
         "//staging/src/k8s.io/client-go/tools/remotecommand:all-srcs",
         "//staging/src/k8s.io/client-go/transport:all-srcs",
+        "//staging/src/k8s.io/client-go/util/buffer:all-srcs",
         "//staging/src/k8s.io/client-go/util/cert:all-srcs",
+        "//staging/src/k8s.io/client-go/util/certificate:all-srcs",
         "//staging/src/k8s.io/client-go/util/exec:all-srcs",
         "//staging/src/k8s.io/client-go/util/flowcontrol:all-srcs",
         "//staging/src/k8s.io/client-go/util/homedir:all-srcs",
@@ -215,6 +209,7 @@ filegroup(
         "//staging/src/k8s.io/metrics/pkg/client/clientset_generated/clientset:all-srcs",
         "//staging/src/k8s.io/metrics/pkg/client/custom_metrics:all-srcs",
         "//staging/src/k8s.io/sample-apiserver:all-srcs",
+        "//staging/src/k8s.io/sample-controller:all-srcs",
     ],
     tags = ["automanaged"],
 )

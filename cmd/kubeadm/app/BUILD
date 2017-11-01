@@ -8,6 +8,7 @@ load(
 go_library(
     name = "go_default_library",
     srcs = ["kubeadm.go"],
+    importpath = "k8s.io/kubernetes/cmd/kubeadm/app",
     deps = [
         "//cmd/kubeadm/app/apis/kubeadm/install:go_default_library",
         "//cmd/kubeadm/app/cmd:go_default_library",
@@ -32,10 +33,8 @@ filegroup(
         "//cmd/kubeadm/app/discovery:all-srcs",
         "//cmd/kubeadm/app/features:all-srcs",
         "//cmd/kubeadm/app/images:all-srcs",
-        "//cmd/kubeadm/app/node:all-srcs",
         "//cmd/kubeadm/app/phases/addons/dns:all-srcs",
         "//cmd/kubeadm/app/phases/addons/proxy:all-srcs",
-        "//cmd/kubeadm/app/phases/apiconfig:all-srcs",
         "//cmd/kubeadm/app/phases/bootstraptoken/clusterinfo:all-srcs",
         "//cmd/kubeadm/app/phases/bootstraptoken/node:all-srcs",
         "//cmd/kubeadm/app/phases/certs:all-srcs",

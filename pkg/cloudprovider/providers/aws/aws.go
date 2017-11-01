@@ -618,7 +618,7 @@ func newEc2Filter(name string, values ...string) *ec2.Filter {
 
 // AddSSHKeyToAllInstances is currently not implemented.
 func (c *Cloud) AddSSHKeyToAllInstances(user string, keyData []byte) error {
-	return errors.New("unimplemented")
+	return cloudprovider.NotImplemented
 }
 
 // CurrentNodeName returns the name of the current node
@@ -1152,7 +1152,33 @@ func (c *Cloud) ExternalID(nodeName types.NodeName) (string, error) {
 // InstanceExistsByProviderID returns true if the instance with the given provider id still exists and is running.
 // If false is returned with no error, the instance will be immediately deleted by the cloud controller manager.
 func (c *Cloud) InstanceExistsByProviderID(providerID string) (bool, error) {
-	return false, errors.New("unimplemented")
+	instanceID, err := kubernetesInstanceID(providerID).mapToAWSInstanceID()
+	if err != nil {
+		return false, err
+	}
+
+	request := &ec2.DescribeInstancesInput{
+		InstanceIds: []*string{instanceID.awsString()},
+	}
+
+	instances, err := c.ec2.DescribeInstances(request)
+	if err != nil {
+		return false, err
+	}
+	if len(instances) == 0 {
+		return false, nil
+	}
+	if len(instances) > 1 {
+		return false, fmt.Errorf("multiple instances found for instance: %s", instanceID)
+	}
+
+	state := instances[0].State.Name
+	if *state != "running" {
+		glog.Warningf("the instance %s is not running", instanceID)
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // InstanceID returns the cloud provider ID of the node with the specified nodeName.
@@ -2782,8 +2808,8 @@ func buildListener(port v1.ServicePort, annotations map[string]string, sslPorts 
 // EnsureLoadBalancer implements LoadBalancer.EnsureLoadBalancer
 func (c *Cloud) EnsureLoadBalancer(clusterName string, apiService *v1.Service, nodes []*v1.Node) (*v1.LoadBalancerStatus, error) {
 	annotations := apiService.Annotations
-	glog.V(2).Infof("EnsureLoadBalancer(%v, %v, %v, %v, %v, %v, %v, %v)",
-		clusterName, apiService.Namespace, apiService.Name, c.region, apiService.Spec.LoadBalancerIP, apiService.Spec.Ports, nodes, annotations)
+	glog.V(2).Infof("EnsureLoadBalancer(%v, %v, %v, %v, %v, %v, %v)",
+		clusterName, apiService.Namespace, apiService.Name, c.region, apiService.Spec.LoadBalancerIP, apiService.Spec.Ports, annotations)
 
 	if apiService.Spec.SessionAffinity != v1.ServiceAffinityNone {
 		// ELB supports sticky sessions, but only when configured for HTTP/HTTPS

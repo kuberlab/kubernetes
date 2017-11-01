@@ -153,6 +153,16 @@
         "code": 200,
         "message": "OK",
         "responseModel": "v1alpha1.PodPreset"
+       },
+       {
+        "code": 201,
+        "message": "Created",
+        "responseModel": "v1alpha1.PodPreset"
+       },
+       {
+        "code": 202,
+        "message": "Accepted",
+        "responseModel": "v1alpha1.PodPreset"
        }
       ],
       "produces": [
@@ -490,6 +500,11 @@
        {
         "code": 200,
         "message": "OK",
+        "responseModel": "v1alpha1.PodPreset"
+       },
+       {
+        "code": 201,
+        "message": "Created",
         "responseModel": "v1alpha1.PodPreset"
        }
       ],
@@ -2306,7 +2321,7 @@
      },
      "kind": {
       "$ref": "v1.AzureDataDiskKind",
-      "description": "Expected values Shared: mulitple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared"
+      "description": "Expected values Shared: multiple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared"
      }
     }
    },
@@ -2477,15 +2492,15 @@
      },
      "protectionDomain": {
       "type": "string",
-      "description": "The name of the Protection Domain for the configured storage (defaults to \"default\")."
+      "description": "The name of the ScaleIO Protection Domain for the configured storage."
      },
      "storagePool": {
       "type": "string",
-      "description": "The Storage Pool associated with the protection domain (defaults to \"default\")."
+      "description": "The ScaleIO Storage Pool associated with the protection domain."
      },
      "storageMode": {
       "type": "string",
-      "description": "Indicates whether the storage for a volume should be thick or thin (defaults to \"thin\")."
+      "description": "Indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned."
      },
      "volumeName": {
       "type": "string",

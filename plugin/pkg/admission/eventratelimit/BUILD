@@ -1,7 +1,5 @@
 package(default_visibility = ["//visibility:public"])
 
-licenses(["notice"])
-
 load(
     "@io_bazel_rules_go//go:def.bzl",
     "go_library",
@@ -14,8 +12,8 @@ go_test(
         "admission_test.go",
         "cache_test.go",
     ],
+    importpath = "k8s.io/kubernetes/plugin/pkg/admission/eventratelimit",
     library = ":go_default_library",
-    tags = ["automanaged"],
     deps = [
         "//pkg/api:go_default_library",
         "//plugin/pkg/admission/eventratelimit/apis/eventratelimit:go_default_library",
@@ -39,7 +37,7 @@ go_library(
         "doc.go",
         "limitenforcer.go",
     ],
-    tags = ["automanaged"],
+    importpath = "k8s.io/kubernetes/plugin/pkg/admission/eventratelimit",
     deps = [
         "//pkg/api:go_default_library",
         "//plugin/pkg/admission/eventratelimit/apis/eventratelimit:go_default_library",
