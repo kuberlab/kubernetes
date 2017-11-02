@@ -31,20 +31,20 @@ import (
 	"k8s.io/kubernetes/cmd/kubeadm/app/phases/certs"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	masterconfig "k8s.io/kubernetes/cmd/kubeadm/app/util/config"
-	"k8s.io/kubernetes/pkg/api/legacyscheme"
+	scheme "k8s.io/kubernetes/pkg/api"
 )
 
 func NewConfigurator(out io.Writer) *cobra.Command {
 	cfg := &kubeadmapiext.MasterConfiguration{}
-	legacyscheme.Scheme.Default(cfg)
+	scheme.Scheme.Default(cfg)
 	etcdDiscoveryService := ""
 	cmd := &cobra.Command{
 		Use:   "configure",
 		Short: "Run this in order to generate masters configurations",
 		Run: func(cmd *cobra.Command, args []string) {
-			legacyscheme.Scheme.Default(cfg)
+			scheme.Scheme.Default(cfg)
 			internalcfg := kubeadmapi.MasterConfiguration{}
-			legacyscheme.Scheme.Convert(cfg, &internalcfg, nil)
+			scheme.Scheme.Convert(cfg, &internalcfg, nil)
 			err := masterconfig.SetInitDynamicDefaults(&internalcfg)
 			kubeadmutil.CheckErr(err)
 			internalcfg.MasterCertificates = &kubeadmapi.MasterCertificates{}
