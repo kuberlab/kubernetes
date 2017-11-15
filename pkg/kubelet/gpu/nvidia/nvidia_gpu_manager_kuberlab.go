@@ -39,10 +39,6 @@ const (
 	nvidiaDeviceRE2 = `^nvidia[0-9]*$`
 )
 
-type activePodsLister interface {
-	// Returns a list of active pods on the node.
-	GetActivePods() []*v1.Pod
-}
 
 // nvidiaGPUManager manages nvidia gpu devices.
 type nvidiaGPUManager2 struct {
