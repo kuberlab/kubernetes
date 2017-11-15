@@ -722,7 +722,7 @@ func (kl *Kubelet) makeEnvironmentVariables(pod *v1.Pod, container *v1.Container
 		}
 	}
 
-	if !container.Resources.Limits.NvidiaGPU().IsZero() && kl.gpuManager.NvidiaDriverType() != gpu.NVIDIA_DOCKER_PLUGIN_2 {
+	if !container.Resources.Limits.NvidiaGPU().IsZero() && kl.gpuManager.NvidiaDriverType() == gpu.NVIDIA_DOCKER_PLUGIN_2 {
 		gpuDevices, err := kl.gpuManager.AllocateGPU(pod, container)
 		if err != nil {
 			return nil, err
