@@ -55,7 +55,7 @@ func NewNvidiaGPUManager2(activePodsLister activePodsLister, dockerClient libdoc
 	if dockerClient == nil {
 		return nil, fmt.Errorf("invalid docker client specified")
 	}
-	return &nvidiaGPUManager{
+	return &nvidiaGPUManager2{
 		allGPUs:          sets.NewString(),
 		dockerClient:     dockerClient,
 		activePodsLister: activePodsLister,
