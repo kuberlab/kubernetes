@@ -18,6 +18,12 @@ package gpu
 
 import "k8s.io/api/core/v1"
 
+type NVIDIADockerPlugin string
+const (
+	NVIDIA_DOCKER_PLUGIN_2 NVIDIADockerPlugin = "nvidia_plugin2"
+	NVIDIA_DOCKER_PLUGIN_1 NVIDIADockerPlugin = "nvidia_plugin1"
+	NVIDIA_VISIBLE_DEVICES_ENV string = "NVIDIA_VISIBLE_DEVICES"
+)
 // GPUManager manages GPUs on a local node.
 // Implementations are expected to be thread safe.
 type GPUManager interface {
@@ -29,4 +35,5 @@ type GPUManager interface {
 	// Returns paths to allocated GPUs and nil on success.
 	// Returns an error on failure.
 	AllocateGPU(*v1.Pod, *v1.Container) ([]string, error)
+	NvidiaDriverType() NVIDIADockerPlugin
 }

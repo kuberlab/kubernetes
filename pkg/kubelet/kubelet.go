@@ -862,7 +862,7 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 	klet.softAdmitHandlers.AddPodAdmitHandler(lifecycle.NewNoNewPrivsAdmitHandler(klet.containerRuntime))
 	if utilfeature.DefaultFeatureGate.Enabled(features.Accelerators) {
 		if kubeCfg.ContainerRuntime == kubetypes.DockerContainerRuntime {
-			if klet.gpuManager, err = nvidia.NewNvidiaGPUManager(klet, kubeDeps.DockerClient); err != nil {
+			if klet.gpuManager, err = nvidia.NewNvidiaGPUManager2(klet, kubeDeps.DockerClient); err != nil {
 				return nil, err
 			}
 		} else {

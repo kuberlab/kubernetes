@@ -56,6 +56,7 @@ import (
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/envvars"
 	"k8s.io/kubernetes/pkg/kubelet/eviction"
+	"k8s.io/kubernetes/pkg/kubelet/gpu"
 	"k8s.io/kubernetes/pkg/kubelet/images"
 	"k8s.io/kubernetes/pkg/kubelet/server/portforward"
 	remotecommandserver "k8s.io/kubernetes/pkg/kubelet/server/remotecommand"
@@ -95,6 +96,10 @@ func (kl *Kubelet) GetActivePods() []*v1.Pod {
 // Experimental.
 func (kl *Kubelet) makeDevices(pod *v1.Pod, container *v1.Container) ([]kubecontainer.DeviceInfo, error) {
 	if container.Resources.Limits.NvidiaGPU().IsZero() {
+		return nil, nil
+	}
+
+	if kl.gpuManager.NvidiaDriverType() != gpu.NVIDIA_DOCKER_PLUGIN_1 {
 		return nil, nil
 	}
 
@@ -716,6 +721,18 @@ func (kl *Kubelet) makeEnvironmentVariables(pod *v1.Pod, container *v1.Container
 			result = append(result, kubecontainer.EnvVar{Name: k, Value: v})
 		}
 	}
+
+	if !container.Resources.Limits.NvidiaGPU().IsZero() && kl.gpuManager.NvidiaDriverType() != gpu.NVIDIA_DOCKER_PLUGIN_2 {
+		gpuDevices, err := kl.gpuManager.AllocateGPU(pod, container)
+		if err != nil {
+			return nil, err
+		}
+		if len(gpuDevices) > 0 {
+			result = append(result, kubecontainer.EnvVar{Name: gpu.NVIDIA_VISIBLE_DEVICES_ENV,
+				Value: strings.Join(gpuDevices, ",")})
+		}
+	}
+
 	return result, nil
 }
 

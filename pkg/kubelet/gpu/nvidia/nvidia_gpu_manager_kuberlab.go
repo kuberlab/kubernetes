@@ -19,8 +19,6 @@ package nvidia
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path"
 	"regexp"
 	"strings"
 	"sync"
@@ -32,19 +30,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/kubernetes/pkg/kubelet/dockershim/libdocker"
 	"k8s.io/kubernetes/pkg/kubelet/gpu"
+	"strconv"
 )
 
 // TODO: rework to use Nvidia's NVML, which is more complex, but also provides more fine-grained information and stats.
 const (
-	// All NVIDIA GPUs cards should be mounted with nvidiactl and nvidia-uvm
-	// If the driver installed correctly, the 2 devices will be there.
-	nvidiaCtlDevice string = "/dev/nvidiactl"
-	nvidiaUVMDevice string = "/dev/nvidia-uvm"
-	// Optional device.
-	nvidiaUVMToolsDevice string = "/dev/nvidia-uvm-tools"
-	devDirectory                = "/dev"
-	nvidiaDeviceRE              = `^nvidia[0-9]*$`
-	nvidiaFullpathRE            = `^/dev/nvidia[0-9]*$`
+	devDirectory2   = "/dev"
+	nvidiaDeviceRE2 = `^nvidia[0-9]*$`
 )
 
 type activePodsLister interface {
@@ -53,21 +45,17 @@ type activePodsLister interface {
 }
 
 // nvidiaGPUManager manages nvidia gpu devices.
-type nvidiaGPUManager struct {
+type nvidiaGPUManager2 struct {
 	sync.Mutex
-	// All gpus available on the Node
-	allGPUs        sets.String
-	allocated      *podGPUs
-	defaultDevices []string
-	// The interface which could get GPU mapping from all the containers.
-	// TODO: Should make this independent of Docker in the future.
+	allGPUs          sets.String
+	allocated        *podGPUs
 	dockerClient     libdocker.Interface
 	activePodsLister activePodsLister
 }
 
 // NewNvidiaGPUManager returns a GPUManager that manages local Nvidia GPUs.
 // TODO: Migrate to use pod level cgroups and make it generic to all runtimes.
-func NewNvidiaGPUManager(activePodsLister activePodsLister, dockerClient libdocker.Interface) (gpu.GPUManager, error) {
+func NewNvidiaGPUManager2(activePodsLister activePodsLister, dockerClient libdocker.Interface) (gpu.GPUManager, error) {
 	if dockerClient == nil {
 		return nil, fmt.Errorf("invalid docker client specified")
 	}
@@ -77,31 +65,17 @@ func NewNvidiaGPUManager(activePodsLister activePodsLister, dockerClient libdock
 		activePodsLister: activePodsLister,
 	}, nil
 }
-
-func (ngm *nvidiaGPUManager) NvidiaDriverType() gpu.NVIDIADockerPlugin {
-	return gpu.NVIDIA_DOCKER_PLUGIN_1
+func (ngm *nvidiaGPUManager2) NvidiaDriverType() gpu.NVIDIADockerPlugin {
+	return gpu.NVIDIA_DOCKER_PLUGIN_2
 }
 
 // Initialize the GPU devices, so far only needed to discover the GPU paths.
-func (ngm *nvidiaGPUManager) Start() error {
+func (ngm *nvidiaGPUManager2) Start() error {
 	if ngm.dockerClient == nil {
 		return fmt.Errorf("Invalid docker client specified in GPU Manager")
 	}
 	ngm.Lock()
 	defer ngm.Unlock()
-
-	if _, err := os.Stat(nvidiaCtlDevice); err != nil {
-		return err
-	}
-
-	if _, err := os.Stat(nvidiaUVMDevice); err != nil {
-		return err
-	}
-	ngm.defaultDevices = []string{nvidiaCtlDevice, nvidiaUVMDevice}
-	_, err := os.Stat(nvidiaUVMToolsDevice)
-	if !os.IsNotExist(err) {
-		ngm.defaultDevices = append(ngm.defaultDevices, nvidiaUVMToolsDevice)
-	}
 
 	if err := ngm.discoverGPUs(); err != nil {
 		return err
@@ -112,7 +86,7 @@ func (ngm *nvidiaGPUManager) Start() error {
 }
 
 // Get how many GPU cards we have.
-func (ngm *nvidiaGPUManager) Capacity() v1.ResourceList {
+func (ngm *nvidiaGPUManager2) Capacity() v1.ResourceList {
 	gpus := resource.NewQuantity(int64(len(ngm.allGPUs)), resource.DecimalSI)
 	return v1.ResourceList{
 		v1.ResourceNvidiaGPU: *gpus,
@@ -133,7 +107,7 @@ func (ngm *nvidiaGPUManager) Capacity() v1.ResourceList {
 // This is a sub-optimal solution and a better alternative would be that of using pod level cgroups instead.
 // GPUs allocated to containers should be reflected in pod level device cgroups before completing allocations.
 // The pod level cgroups will then serve as a checkpoint of GPUs in use.
-func (ngm *nvidiaGPUManager) AllocateGPU(pod *v1.Pod, container *v1.Container) ([]string, error) {
+func (ngm *nvidiaGPUManager2) AllocateGPU(pod *v1.Pod, container *v1.Container) ([]string, error) {
 	gpusNeeded := container.Resources.Limits.NvidiaGPU().Value()
 	if gpusNeeded == 0 {
 		return []string{}, nil
@@ -151,7 +125,7 @@ func (ngm *nvidiaGPUManager) AllocateGPU(pod *v1.Pod, container *v1.Container) (
 	// This can happen if a container restarts for example.
 	if devices := ngm.allocated.getGPUs(string(pod.UID), container.Name); devices != nil {
 		glog.V(2).Infof("Found pre-allocated GPUs for container %q in Pod %q: %v", container.Name, pod.UID, devices.List())
-		return append(devices.List(), ngm.defaultDevices...), nil
+		return devices.List(), nil
 	}
 	// Get GPU devices in use.
 	devicesInUse := ngm.allocated.devices()
@@ -167,8 +141,6 @@ func (ngm *nvidiaGPUManager) AllocateGPU(pod *v1.Pod, container *v1.Container) (
 		// Update internal allocated GPU cache.
 		ngm.allocated.insert(string(pod.UID), container.Name, device)
 	}
-	// Add standard devices files that needs to be exposed.
-	ret = append(ret, ngm.defaultDevices...)
 
 	return ret, nil
 }
@@ -176,7 +148,7 @@ func (ngm *nvidiaGPUManager) AllocateGPU(pod *v1.Pod, container *v1.Container) (
 // updateAllocatedGPUs updates the list of GPUs in use.
 // It gets a list of active pods and then frees any GPUs that are bound to terminated pods.
 // Returns error on failure.
-func (ngm *nvidiaGPUManager) updateAllocatedGPUs() {
+func (ngm *nvidiaGPUManager2) updateAllocatedGPUs() {
 	activePods := ngm.activePodsLister.GetActivePods()
 	activePodUids := sets.NewString()
 	for _, pod := range activePods {
@@ -194,9 +166,9 @@ func (ngm *nvidiaGPUManager) updateAllocatedGPUs() {
 // family name. Need to support NVML in the future. But we do not need NVML until
 // we want more features, features like schedule containers according to GPU family
 // name.
-func (ngm *nvidiaGPUManager) discoverGPUs() error {
-	reg := regexp.MustCompile(nvidiaDeviceRE)
-	files, err := ioutil.ReadDir(devDirectory)
+func (ngm *nvidiaGPUManager2) discoverGPUs() error {
+	reg := regexp.MustCompile(nvidiaDeviceRE2)
+	files, err := ioutil.ReadDir(devDirectory2)
 	if err != nil {
 		return err
 	}
@@ -204,9 +176,9 @@ func (ngm *nvidiaGPUManager) discoverGPUs() error {
 		if f.IsDir() {
 			continue
 		}
-		if reg.MatchString(f.Name()) {
-			glog.V(2).Infof("Found Nvidia GPU %q", f.Name())
-			ngm.allGPUs.Insert(path.Join(devDirectory, f.Name()))
+		if p := reg.FindStringSubmatch(f.Name()); len(p) == 2 {
+			glog.V(2).Infof("Found Nvidia GPU %q %s", f.Name(), p[1])
+			ngm.allGPUs.Insert(p[1])
 		}
 	}
 
@@ -214,7 +186,7 @@ func (ngm *nvidiaGPUManager) discoverGPUs() error {
 }
 
 // gpusInUse returns a list of GPUs in use along with the respective pods that are using it.
-func (ngm *nvidiaGPUManager) gpusInUse() *podGPUs {
+func (ngm *nvidiaGPUManager2) gpusInUse() *podGPUs {
 	pods := ngm.activePodsLister.GetActivePods()
 	type containerIdentifier struct {
 		id   string
@@ -257,23 +229,18 @@ func (ngm *nvidiaGPUManager) gpusInUse() *podGPUs {
 				glog.V(3).Infof("Failed to inspect container %q in pod %q while attempting to reconcile nvidia gpus in use", containerIdentifier.id, podContainer.uid)
 				continue
 			}
-
-			devices := containerJSON.HostConfig.Devices
-			if devices == nil {
-				continue
-			}
-
-			for _, device := range devices {
-				if isValidPath(device.PathOnHost) {
-					glog.V(4).Infof("Nvidia GPU %q is in use by Docker Container: %q", device.PathOnHost, containerJSON.ID)
-					ret.insert(podContainer.uid, containerIdentifier.name, device.PathOnHost)
+			for _, e := range containerJSON.Config.Env {
+				if strings.HasPrefix(e, "NVIDIA_VISIBLE_DEVICES=") {
+					e = strings.TrimPrefix(e, "NVIDIA_VISIBLE_DEVICES=")
+					devices := strings.Split(e, ",")
+					for _, d := range devices {
+						if _, err := strconv.Atoi(d); err == nil {
+							ret.insert(podContainer.uid, containerIdentifier.name, d)
+						}
+					}
 				}
 			}
 		}
 	}
 	return ret
-}
-
-func isValidPath(path string) bool {
-	return regexp.MustCompile(nvidiaFullpathRE).MatchString(path)
 }

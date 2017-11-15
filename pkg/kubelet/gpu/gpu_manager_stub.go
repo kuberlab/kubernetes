@@ -35,6 +35,9 @@ func (gms *gpuManagerStub) Capacity() v1.ResourceList {
 func (gms *gpuManagerStub) AllocateGPU(_ *v1.Pod, _ *v1.Container) ([]string, error) {
 	return nil, fmt.Errorf("GPUs are not supported")
 }
+func (gms *gpuManagerStub) NvidiaDriverType() NVIDIADockerPlugin {
+	return NVIDIADockerPlugin("")
+}
 
 func NewGPUManagerStub() GPUManager {
 	return &gpuManagerStub{}
