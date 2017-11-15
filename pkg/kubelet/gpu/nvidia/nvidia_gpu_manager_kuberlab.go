@@ -36,7 +36,7 @@ import (
 // TODO: rework to use Nvidia's NVML, which is more complex, but also provides more fine-grained information and stats.
 const (
 	devDirectory2   = "/dev"
-	nvidiaDeviceRE2 = `^nvidia[0-9]*$`
+	nvidiaDeviceRE2 = `^nvidia([0-9]*)$`
 )
 
 
