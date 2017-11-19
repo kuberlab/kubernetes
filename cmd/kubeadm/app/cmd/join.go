@@ -161,10 +161,6 @@ type Join struct {
 func NewJoin(cfgPath string, args []string, cfg *kubeadmapi.NodeConfiguration, skipPreFlight bool) (*Join, error) {
 	fmt.Println("[kubeadm] WARNING: kubeadm is in beta, please do not use it for production clusters.")
 
-	if cfg.NodeName == "" {
-		cfg.NodeName = nodeutil.GetHostname("")
-	}
-
 	if cfgPath != "" {
 		b, err := ioutil.ReadFile(cfgPath)
 		if err != nil {
@@ -173,6 +169,10 @@ func NewJoin(cfgPath string, args []string, cfg *kubeadmapi.NodeConfiguration, s
 		if err := runtime.DecodeInto(api.Codecs.UniversalDecoder(), b, cfg); err != nil {
 			return nil, fmt.Errorf("unable to decode config from %q [%v]", cfgPath, err)
 		}
+	}
+
+	if cfg.NodeName == "" {
+		cfg.NodeName = nodeutil.GetHostname("")
 	}
 
 	if !skipPreFlight {
