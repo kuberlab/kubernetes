@@ -173,6 +173,7 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 				// incorrect ownership and mode. For example, the sub path directory must have at least g+rwx
 				// when the pod specifies an fsGroup, and if the directory is not created here, Docker will
 				// later auto-create it with the incorrect mode 0750
+				glog.V(5).Infof("Create subpath %s",hostPath)
 				if err := os.MkdirAll(hostPath, perm); err != nil {
 					glog.Errorf("failed to mkdir:%s", hostPath)
 					return nil, err
