@@ -31,10 +31,14 @@ import (
 	expandcache "k8s.io/kubernetes/pkg/controller/volume/expand/cache"
 	"k8s.io/kubernetes/pkg/features"
 	kevents "k8s.io/kubernetes/pkg/kubelet/events"
+	utilfile "k8s.io/kubernetes/pkg/util/file"
 	"k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/util"
 	"k8s.io/kubernetes/pkg/volume/util/volumehelper"
+	volumevalidation "k8s.io/kubernetes/pkg/volume/validation"
+	"os"
+	"path/filepath"
 )
 
 var _ OperationGenerator = &operationGenerator{}
@@ -474,6 +478,9 @@ func (og *operationGenerator) GenerateMountVolumeFunc(
 			return detailedErr
 		}
 
+		//Create subdir inside the same thread as mount volume.
+		makeVolumeSubDirs(volumeToMount, volumeMounter)
+
 		simpleMsg, detailedMsg := volumeToMount.GenerateMsg("MountVolume.SetUp succeeded", "")
 		verbosity := glog.Level(1)
 		if isRemount {
@@ -498,6 +505,69 @@ func (og *operationGenerator) GenerateMountVolumeFunc(
 
 		return nil
 	}, volumePlugin.GetPluginName(), nil
+}
+
+func makeVolumeSubDirs(volumeToMount VolumeToMount, mounter volume.Mounter) error {
+	createSubDir := func(c v1.Container) error {
+		for _, mount := range c.VolumeMounts {
+			if mount.Name != volumeToMount.OuterVolumeSpecName || mount.SubPath == "" {
+				continue
+			}
+
+			hostPath, err := volume.GetPath(mounter)
+			if err != nil {
+				return err
+			}
+
+			if filepath.IsAbs(mount.SubPath) {
+				return fmt.Errorf("error SubPath `%s` must not be an absolute path", mount.SubPath)
+			}
+
+			err = volumevalidation.ValidatePathNoBacksteps(mount.SubPath)
+			if err != nil {
+				return fmt.Errorf("unable to provision SubPath `%s`: %v", mount.SubPath, err)
+			}
+
+			fileinfo, err := os.Lstat(hostPath)
+			if err != nil {
+				return err
+			}
+			perm := fileinfo.Mode()
+
+			hostPath = filepath.Join(hostPath, mount.SubPath)
+
+			if subPathExists, err := utilfile.FileOrSymlinkExists(hostPath); err != nil {
+				glog.Errorf("Could not determine if subPath %s exists; will not attempt to change its permissions", hostPath)
+			} else if !subPathExists {
+				// Create the sub path now because if it's auto-created later when referenced, it may have an
+				// incorrect ownership and mode. For example, the sub path directory must have at least g+rwx
+				// when the pod specifies an fsGroup, and if the directory is not created here, Docker will
+				// later auto-create it with the incorrect mode 0750
+				if err := os.MkdirAll(hostPath, perm); err != nil {
+					glog.Errorf("failed to mkdir:%s", hostPath)
+					return err
+				}
+
+				// chmod the sub path because umask may have prevented us from making the sub path with the same
+				// permissions as the mounter path
+				if err := os.Chmod(hostPath, perm); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	for i := range volumeToMount.Pod.Spec.InitContainers {
+		if err := createSubDir(volumeToMount.Pod.Spec.InitContainers[i]); err != nil {
+			return err
+		}
+	}
+	for i := range volumeToMount.Pod.Spec.Containers {
+		if err := createSubDir(volumeToMount.Pod.Spec.InitContainers[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (og *operationGenerator) GenerateUnmountVolumeFunc(
