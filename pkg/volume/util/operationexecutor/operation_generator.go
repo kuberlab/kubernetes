@@ -473,13 +473,18 @@ func (og *operationGenerator) GenerateMountVolumeFunc(
 		mountErr := volumeMounter.SetUp(fsGroup)
 		if mountErr != nil {
 			// On failure, return error. Caller will log and retry.
-			eventErr, detailedErr := volumeToMount.GenerateError("MountVolume.SetUp failed", mountErr)
+			eventErr, detailedErr := volumeToMount.GenerateError("MountVolume.SetUpSubDir failed", mountErr)
 			og.recorder.Eventf(volumeToMount.Pod, v1.EventTypeWarning, kevents.FailedMountVolume, eventErr.Error())
 			return detailedErr
 		}
 
 		//Create subdir inside the same thread as mount volume.
-		makeVolumeSubDirs(volumeToMount, volumeMounter)
+		subDirCreateErr := makeVolumeSubDirs(volumeToMount, volumeMounter)
+		if subDirCreateErr!=nil{
+			eventErr, detailedErr := volumeToMount.GenerateError("MountVolume.SetUp failed", subDirCreateErr)
+			og.recorder.Eventf(volumeToMount.Pod, v1.EventTypeWarning, kevents.FailedMountVolume, eventErr.Error())
+			return detailedErr
+		}
 
 		simpleMsg, detailedMsg := volumeToMount.GenerateMsg("MountVolume.SetUp succeeded", "")
 		verbosity := glog.Level(1)
@@ -513,7 +518,7 @@ func makeVolumeSubDirs(volumeToMount VolumeToMount, mounter volume.Mounter) erro
 			if mount.Name != volumeToMount.OuterVolumeSpecName || mount.SubPath == "" {
 				continue
 			}
-
+			glog.V(5).Infof("MountVolume.SetUpSubDir %s/%s %s",volumeToMount.Pod.Name,volumeToMount.VolumeName,mount.SubPath)
 			hostPath, err := volume.GetPath(mounter)
 			if err != nil {
 				return err
