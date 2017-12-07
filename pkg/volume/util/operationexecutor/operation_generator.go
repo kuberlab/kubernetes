@@ -568,7 +568,7 @@ func makeVolumeSubDirs(volumeToMount VolumeToMount, mounter volume.Mounter) erro
 		}
 	}
 	for i := range volumeToMount.Pod.Spec.Containers {
-		if err := createSubDir(volumeToMount.Pod.Spec.InitContainers[i]); err != nil {
+		if err := createSubDir(volumeToMount.Pod.Spec.Containers[i]); err != nil {
 			return err
 		}
 	}
