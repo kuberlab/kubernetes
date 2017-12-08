@@ -65,6 +65,9 @@ import (
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/util/volumehelper"
 	"k8s.io/kubernetes/third_party/forked/golang/expansion"
+	"path/filepath"
+	utilfile "k8s.io/kubernetes/pkg/util/file"
+	volumevalidation "k8s.io/kubernetes/pkg/volume/validation"
 )
 
 // Get a list of pods that have data directories.
@@ -146,6 +149,23 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 			return nil, err
 		}
 
+		if mount.SubPath != "" {
+			if filepath.IsAbs(mount.SubPath) {
+				return nil, fmt.Errorf("error SubPath `%s` must not be an absolute path", mount.SubPath)
+			}
+
+			err = volumevalidation.ValidatePathNoBacksteps(mount.SubPath)
+			if err != nil {
+				return nil, fmt.Errorf("unable to provision SubPath `%s`: %v", mount.SubPath, err)
+			}
+
+
+			hostPath = filepath.Join(hostPath, mount.SubPath)
+
+			if subPathExists, err := utilfile.FileOrSymlinkExists(hostPath); err != nil || !subPathExists {
+				return nil, fmt.Errorf("Could not determine if subPath %s exists.", hostPath)
+			}
+		}
 		// Docker Volume Mounts fail on Windows if it is not of the form C:/
 		containerPath := mount.MountPath
 		if runtime.GOOS == "windows" {
