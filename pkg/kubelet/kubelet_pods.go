@@ -62,12 +62,12 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/status"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
-	utilfile "k8s.io/kubernetes/pkg/util/file"
 	"k8s.io/kubernetes/pkg/volume"
 	volumeutil "k8s.io/kubernetes/pkg/volume/util"
 	"k8s.io/kubernetes/pkg/volume/util/volumehelper"
-	volumevalidation "k8s.io/kubernetes/pkg/volume/validation"
 	"k8s.io/kubernetes/third_party/forked/golang/expansion"
+	volumevalidation "k8s.io/kubernetes/pkg/volume/validation"
+	utilfile "k8s.io/kubernetes/pkg/util/file"
 )
 
 // Get a list of pods that have data directories.
@@ -194,6 +194,7 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 		if err != nil {
 			return nil, err
 		}
+
 		if mount.SubPath != "" {
 			if filepath.IsAbs(mount.SubPath) {
 				return nil, fmt.Errorf("error SubPath `%s` must not be an absolute path", mount.SubPath)
@@ -204,31 +205,11 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 				return nil, fmt.Errorf("unable to provision SubPath `%s`: %v", mount.SubPath, err)
 			}
 
-			fileinfo, err := os.Lstat(hostPath)
-			if err != nil {
-				return nil, err
-			}
-			perm := fileinfo.Mode()
 
 			hostPath = filepath.Join(hostPath, mount.SubPath)
 
-			if subPathExists, err := utilfile.FileOrSymlinkExists(hostPath); err != nil {
-				glog.Errorf("Could not determine if subPath %s exists; will not attempt to change its permissions", hostPath)
-			} else if !subPathExists {
-				// Create the sub path now because if it's auto-created later when referenced, it may have an
-				// incorrect ownership and mode. For example, the sub path directory must have at least g+rwx
-				// when the pod specifies an fsGroup, and if the directory is not created here, Docker will
-				// later auto-create it with the incorrect mode 0750
-				if err := os.MkdirAll(hostPath, perm); err != nil {
-					glog.Errorf("failed to mkdir:%s", hostPath)
-					return nil, err
-				}
-
-				// chmod the sub path because umask may have prevented us from making the sub path with the same
-				// permissions as the mounter path
-				if err := os.Chmod(hostPath, perm); err != nil {
-					return nil, err
-				}
+			if subPathExists, err := utilfile.FileOrSymlinkExists(hostPath); err != nil || !subPathExists {
+				return nil, fmt.Errorf("Could not determine if subPath %s exists.", hostPath)
 			}
 		}
 
