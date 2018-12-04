@@ -1123,7 +1123,7 @@ binary | sha256 hash
 
 # v1.4.0-alpha.3
 
-[Documentation](http://kubernetes.github.io) & [Examples](http://releases.k8s.io/master/examples)
+[Documentation](http://kubernetes.github.io) & [Examples](http://releases.k8s.io/release-1.4/examples)
 
 ## Downloads
 
@@ -1187,7 +1187,7 @@ binary | sha256 hash
 * The implicit registration of Prometheus metrics for request count and latency have been removed, and a plug-able interface was added. If you were using our client libraries in your own binaries and want these metrics, add the following to your imports in the main package: "k8s.io/pkg/client/metrics/prometheus".  ([#30638](https://github.com/kubernetes/kubernetes/pull/30638), [@krousey](https://github.com/krousey))
 * Add support for --image-pull-policy to 'kubectl run' ([#30614](https://github.com/kubernetes/kubernetes/pull/30614), [@AdoHe](https://github.com/AdoHe))
 * x509 authenticator: get groups from subject's organization field ([#30392](https://github.com/kubernetes/kubernetes/pull/30392), [@ericchiang](https://github.com/ericchiang))
-* Add initial support for TokenFile to to the client config file. ([#29696](https://github.com/kubernetes/kubernetes/pull/29696), [@brendandburns](https://github.com/brendandburns))
+* Add initial support for TokenFile to the client config file. ([#29696](https://github.com/kubernetes/kubernetes/pull/29696), [@brendandburns](https://github.com/brendandburns))
 * update kubectl help output for better organization ([#25524](https://github.com/kubernetes/kubernetes/pull/25524), [@AdoHe](https://github.com/AdoHe))
 * daemonset controller should respect taints ([#31020](https://github.com/kubernetes/kubernetes/pull/31020), [@mikedanese](https://github.com/mikedanese))
 * Implement TLS bootstrap for kubelet using `--experimental-bootstrap-kubeconfig`  (2nd take) ([#30922](https://github.com/kubernetes/kubernetes/pull/30922), [@yifan-gu](https://github.com/yifan-gu))
@@ -1281,7 +1281,7 @@ binary | sha256 hash
 
 # v1.4.0-alpha.2
 
-[Documentation](http://kubernetes.github.io) & [Examples](http://releases.k8s.io/master/examples)
+[Documentation](http://kubernetes.github.io) & [Examples](http://releases.k8s.io/release-1.4/examples)
 
 ## Downloads
 
@@ -1368,7 +1368,7 @@ binary | sha256 hash
 
 # v1.4.0-alpha.1
 
-[Documentation](http://kubernetes.github.io) & [Examples](http://releases.k8s.io/master/examples)
+[Documentation](http://kubernetes.github.io) & [Examples](http://releases.k8s.io/release-1.4/examples)
 
 ## Downloads
 
@@ -1385,7 +1385,7 @@ binary | sha1 hash | md5 hash
 ### Action Required
 
 * [kubelet] Allow opting out of automatic cloud provider detection in kubelet. By default kubelet will auto-detect cloud providers ([#28258](https://github.com/kubernetes/kubernetes/pull/28258), [@vishh](https://github.com/vishh))
-* If you use one of the kube-dns replication controller manifest in `cluster/saltbase/salt/kube-dns`, i.e. `cluster/saltbase/salt/kube-dns/{skydns-rc.yaml.base,skydns-rc.yaml.in}`, either substitute one of `__PILLAR__FEDERATIONS__DOMAIN__MAP__` or `{{ pillar['federations_domain_map'] }}` with the corresponding federation name to domain name value or remove them if you do not support cluster federation at this time. If you plan to substitute the parameter with its value, here is an example for `{{ pillar['federations_domain_map'] }` ([#28132](https://github.com/kubernetes/kubernetes/pull/28132), [@madhusudancs](https://github.com/madhusudancs))
+* If you use one of the kube-dns replication controller manifest in `cluster/saltbase/salt/kube-dns`, i.e. `cluster/saltbase/salt/kube-dns/{skydns-rc.yaml.base,skydns-rc.yaml.in}`, either substitute one of `__PILLAR__FEDERATIONS__DOMAIN__MAP__` or `{{ pillar['federations_domain_map'] }}` with the corresponding federation name to domain name value or remove them if you do not support cluster federation at this time. If you plan to substitute the parameter with its value, here is an example for `{{ pillar['federations_domain_map'] }}` ([#28132](https://github.com/kubernetes/kubernetes/pull/28132), [@madhusudancs](https://github.com/madhusudancs))
     * pillar['federations_domain_map'] = "- --federations=myfederation=federation.test"
     * where `myfederation` is the name of the federation and `federation.test` is the domain name registered for the federation.
 * Proportionally scale paused and rolling deployments ([#20273](https://github.com/kubernetes/kubernetes/pull/20273), [@kargakis](https://github.com/kargakis))

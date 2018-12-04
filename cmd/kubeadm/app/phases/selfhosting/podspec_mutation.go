@@ -18,10 +18,10 @@ package selfhosting
 
 import (
 	"path/filepath"
+	"strings"
 
 	"k8s.io/api/core/v1"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
-	"k8s.io/kubernetes/cmd/kubeadm/app/features"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 )
 
@@ -35,13 +35,14 @@ const (
 // PodSpecMutatorFunc is a function capable of mutating a PodSpec
 type PodSpecMutatorFunc func(*v1.PodSpec)
 
-// GetDefaultMutators gets the mutator functions that alwasy should be used
+// GetDefaultMutators gets the mutator functions that always should be used
 func GetDefaultMutators() map[string][]PodSpecMutatorFunc {
 	return map[string][]PodSpecMutatorFunc{
 		kubeadmconstants.KubeAPIServer: {
 			addNodeSelectorToPodSpec,
 			setMasterTolerationOnPodSpec,
 			setRightDNSPolicyOnPodSpec,
+			setHostIPOnPodSpec,
 		},
 		kubeadmconstants.KubeControllerManager: {
 			addNodeSelectorToPodSpec,
@@ -57,18 +58,18 @@ func GetDefaultMutators() map[string][]PodSpecMutatorFunc {
 }
 
 // GetMutatorsFromFeatureGates returns all mutators needed based on the feature gates passed
-func GetMutatorsFromFeatureGates(featureGates map[string]bool) map[string][]PodSpecMutatorFunc {
+func GetMutatorsFromFeatureGates(certsInSecrets bool) map[string][]PodSpecMutatorFunc {
 	// Here the map of different mutators to use for the control plane's podspec is stored
 	mutators := GetDefaultMutators()
 
-	// Some extra work to be done if we should store the control plane certificates in Secrets
-	if features.Enabled(featureGates, features.StoreCertsInSecrets) {
-
+	if certsInSecrets {
+		// Some extra work to be done if we should store the control plane certificates in Secrets
 		// Add the store-certs-in-secrets-specific mutators here so that the self-hosted component starts using them
 		mutators[kubeadmconstants.KubeAPIServer] = append(mutators[kubeadmconstants.KubeAPIServer], setSelfHostedVolumesForAPIServer)
 		mutators[kubeadmconstants.KubeControllerManager] = append(mutators[kubeadmconstants.KubeControllerManager], setSelfHostedVolumesForControllerManager)
 		mutators[kubeadmconstants.KubeScheduler] = append(mutators[kubeadmconstants.KubeScheduler], setSelfHostedVolumesForScheduler)
 	}
+
 	return mutators
 }
 
@@ -99,6 +100,26 @@ func setMasterTolerationOnPodSpec(podSpec *v1.PodSpec) {
 	}
 
 	podSpec.Tolerations = append(podSpec.Tolerations, kubeadmconstants.MasterToleration)
+}
+
+// setHostIPOnPodSpec sets the environment variable HOST_IP using downward API
+func setHostIPOnPodSpec(podSpec *v1.PodSpec) {
+	envVar := v1.EnvVar{
+		Name: "HOST_IP",
+		ValueFrom: &v1.EnvVarSource{
+			FieldRef: &v1.ObjectFieldSelector{
+				FieldPath: "status.hostIP",
+			},
+		},
+	}
+
+	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, envVar)
+
+	for i := range podSpec.Containers[0].Command {
+		if strings.Contains(podSpec.Containers[0].Command[i], "advertise-address") {
+			podSpec.Containers[0].Command[i] = "--advertise-address=$(HOST_IP)"
+		}
+	}
 }
 
 // setRightDNSPolicyOnPodSpec makes sure the self-hosted components can look up things via kube-dns if necessary

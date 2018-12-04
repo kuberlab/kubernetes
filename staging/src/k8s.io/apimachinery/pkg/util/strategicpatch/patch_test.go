@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
@@ -652,6 +652,21 @@ mergingIntList:
   - 1
 `),
 			ExpectedError: "doesn't match",
+		},
+	},
+	{
+		Description: "missing merge key should error out",
+		StrategicMergePatchRawTestCaseData: StrategicMergePatchRawTestCaseData{
+			Original: []byte(`
+mergingList:
+  - name: 1
+    value: a
+`),
+			TwoWay: []byte(`
+mergingList:
+  - value: b
+`),
+			ExpectedError: "does not contain declared merge key",
 		},
 	},
 }

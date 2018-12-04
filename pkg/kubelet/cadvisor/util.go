@@ -29,6 +29,12 @@ import (
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 )
 
+const (
+	// Please keep this in sync with the one in:
+	// github.com/google/cadvisor/container/crio/client.go
+	CrioSocket = "/var/run/crio/crio.sock"
+)
+
 func CapacityFromMachineInfo(info *cadvisorapi.MachineInfo) v1.ResourceList {
 	c := v1.ResourceList{
 		v1.ResourceCPU: *resource.NewMilliQuantity(
@@ -69,7 +75,6 @@ func EphemeralStorageCapacityFromFsInfo(info cadvisorapi2.FsInfo) v1.ResourceLis
 // https://github.com/kubernetes/kubernetes/issues/51798
 // UsingLegacyCadvisorStats returns true if container stats are provided by cadvisor instead of through the CRI
 func UsingLegacyCadvisorStats(runtime, runtimeEndpoint string) bool {
-	return runtime == kubetypes.RktContainerRuntime ||
-		(runtime == kubetypes.DockerContainerRuntime && goruntime.GOOS == "linux") ||
-		runtimeEndpoint == "/var/run/crio.sock"
+	return (runtime == kubetypes.DockerContainerRuntime && goruntime.GOOS == "linux") ||
+		runtimeEndpoint == CrioSocket || runtimeEndpoint == "unix://"+CrioSocket
 }
